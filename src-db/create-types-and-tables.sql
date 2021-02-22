@@ -11,6 +11,54 @@ CREATE DOMAIN met.varcharcodesimple AS character varying(100) CHECK (VALUE ~* '^
 CREATE DOMAIN met.varcharcodesimple_lc AS character varying(100) CHECK (VALUE ~* '^[a-z0-9_\-\.]+');
 CREATE DOMAIN met.varcharcodesimple_uc AS character varying(100) CHECK (VALUE ~* '^[A-Z0-9_\-\.]+');
 
+-- DROP TABLE met.phenotype_type;
+CREATE TABLE met.phenotype_type
+(
+    code met.varcharcodesimple_lc NOT NULL,
+    name character varying NOT NULL,
+    documentation character varying NOT NULL,
+    CONSTRAINT phenotype_type_pkey PRIMARY KEY (code),
+    CONSTRAINT phenotype_type_code_u UNIQUE (code)
+);
+COMMENT ON TABLE met.phenotype_type IS 'The primary unique types of phenotypes/traits defined in and referred to throughout the database.';
+
+-- DROP TABLE met.phenotype_category;
+CREATE TABLE met.phenotype_category
+(
+    id integer NOT NULL GENERATED ALWAYS AS IDENTITY ( INCREMENT 1 START 1 MINVALUE 1 MAXVALUE 2147483647 CACHE 1 ),
+    code met.varcharcodesimple_lc NOT NULL,
+    name character varying NOT NULL,
+    documentation character varying NOT NULL,
+    time_entry TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    CONSTRAINT phenotype_category_pkey PRIMARY KEY (id)
+);
+COMMENT ON TABLE met.phenotype_category IS 'Categories of phenotypes/traits defined in and referred to throughout the database.';
+
+-- DROP TABLE met.phenotype;
+CREATE TABLE met.phenotype
+(
+    id integer NOT NULL GENERATED ALWAYS AS IDENTITY ( INCREMENT 1 START 1 MINVALUE 1 MAXVALUE 2147483647 CACHE 1 ),
+    code met.varcharcodeletnum_lc NOT NULL,
+    name character varying NOT NULL,
+    phenotype_type met.varcharcodesimple_lc NOT NULL,
+    documentation character varying NOT NULL,
+    time_entry TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    CONSTRAINT phenotype_pkey PRIMARY KEY (id),
+    CONSTRAINT phenotype_phenotype_type_fk FOREIGN KEY (phenotype_type) REFERENCES met.phenotype_type(code)
+);
+
+-- DROP TABLE met.phenotype_phenotype_category;
+CREATE TABLE met.phenotype_phenotype_category
+(
+    phenotype integer NOT NULL,
+    phenotype_category integer NOT NULL,
+    documentation character varying,
+    CONSTRAINT phenotype_phenotype_category_phenotype_fk FOREIGN KEY (phenotype) REFERENCES met.phenotype(id),
+    CONSTRAINT phenotype_phenotype_category_phenotype_category_fk FOREIGN KEY (phenotype_category) REFERENCES met.phenotype_category(id)
+);
+COMMENT ON TABLE met.phenotype_phenotype_category IS 'Links between phenotypes and phenotype categories. Multiple categories allowed for each phenotype';
+CREATE UNIQUE INDEX phenotype_phenotype_category_u ON met.phenotype_phenotype_category (phenotype,phenotype_category);
+
 
 -- DROP TABLE met.assessment_type;
 CREATE TABLE met.assessment_type
@@ -37,7 +85,7 @@ COMMENT ON TABLE met.assessment_item_type IS 'The types of assessment items defi
 -- DROP TABLE met.assessment;
 CREATE TABLE met.assessment
 (
-    _id integer NOT NULL GENERATED ALWAYS AS IDENTITY ( INCREMENT 1 START 1 MINVALUE 1 MAXVALUE 2147483647 CACHE 1 ),
+    id integer NOT NULL GENERATED ALWAYS AS IDENTITY ( INCREMENT 1 START 1 MINVALUE 1 MAXVALUE 2147483647 CACHE 1 ),
     code met.varcharcodeletnum_lc NOT NULL,
     version_year met.intyearmodern,
     version_major_integer met.intpos,
@@ -47,7 +95,7 @@ CREATE TABLE met.assessment
     assessment_type met.varcharcodesimple_lc NOT NULL,
     documentation character varying NOT NULL,
     time_entry TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-    CONSTRAINT assessment_pkey PRIMARY KEY (_id),
+    CONSTRAINT assessment_pkey PRIMARY KEY (id),
     CONSTRAINT assessment_assessment_type_fk FOREIGN KEY (assessment_type) REFERENCES met.assessment_type(code)
 );
 COMMENT ON TABLE met.assessment IS 'Assessments defined in and referred to throughout the database.';
@@ -62,13 +110,13 @@ CREATE UNIQUE INDEX assessment_u_version_null_code_year_major_minor ON met.asses
 -- DROP TABLE met.cohort;
 CREATE TABLE met.cohort
 (
-    _id integer NOT NULL GENERATED ALWAYS AS IDENTITY ( INCREMENT 1 START 1 MINVALUE 1 MAXVALUE 2147483647 CACHE 1 ),
+    id integer NOT NULL GENERATED ALWAYS AS IDENTITY ( INCREMENT 1 START 1 MINVALUE 1 MAXVALUE 2147483647 CACHE 1 ),
     code met.varcharcodeletnum_lc NOT NULL,
     name character varying NOT NULL,
 	location_descriptor met.varcharcodesimple NOT NULL,
     documentation character varying NOT NULL,
 	time_entry TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-    CONSTRAINT cohort_pkey PRIMARY KEY (_id),
+    CONSTRAINT cohort_pkey PRIMARY KEY (id),
     CONSTRAINT cohort_code_u UNIQUE (code)
 );
 COMMENT ON TABLE met.cohort IS 'Cohorts referred to throughout the database.';
@@ -77,14 +125,14 @@ COMMENT ON TABLE met.cohort IS 'Cohorts referred to throughout the database.';
 -- DROP TABLE met.cohortinstance;
 CREATE TABLE met.cohortinstance
 (
-    _id integer NOT NULL GENERATED ALWAYS AS IDENTITY ( INCREMENT 1 START 1 MINVALUE 1 MAXVALUE 2147483647 CACHE 1 ),
+    id integer NOT NULL GENERATED ALWAYS AS IDENTITY ( INCREMENT 1 START 1 MINVALUE 1 MAXVALUE 2147483647 CACHE 1 ),
     cohort integer NOT NULL,
 	code met.varcharcodeletnum_lc NOT NULL,
 	time_extraction TIMESTAMP WITH TIME ZONE NOT NULL,
     documentation character varying NOT NULL,
 	time_entry TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-    CONSTRAINT cohortinstance_pkey PRIMARY KEY (_id),
-    CONSTRAINT cohortinstance_cohort_fk FOREIGN KEY (cohort) REFERENCES met.cohort (_id)
+    CONSTRAINT cohortinstance_pkey PRIMARY KEY (id),
+    CONSTRAINT cohortinstance_cohort_fk FOREIGN KEY (cohort) REFERENCES met.cohort (id)
 );
 COMMENT ON TABLE met.cohortinstance IS 'Instances of cohort data referring to specific phenotype data tables in the database for the assessments made.';
 CREATE UNIQUE INDEX cohortinstance_cohort_code_u ON met.cohortinstance (cohort,code);
@@ -92,7 +140,7 @@ CREATE UNIQUE INDEX cohortinstance_cohort_code_u ON met.cohortinstance (cohort,c
 -- DROP TABLE met.cohortinstance_assessment_item;
 CREATE TABLE met.cohortinstance_assessment_item
 (
-    _id integer NOT NULL GENERATED ALWAYS AS IDENTITY ( INCREMENT 1 START 1 MINVALUE 1 MAXVALUE 2147483647 CACHE 1 ),
+    id integer NOT NULL GENERATED ALWAYS AS IDENTITY ( INCREMENT 1 START 1 MINVALUE 1 MAXVALUE 2147483647 CACHE 1 ),
     cohortinstance integer NOT NULL,
     assessment integer NOT NULL,
     item_descriptor met.varcharcodeletnum_lc NOT NULL,
@@ -102,7 +150,7 @@ CREATE TABLE met.cohortinstance_assessment_item
     assessment_item_type met.varcharcodeletnum_lc NOT NULL,
     item_text character varying NOT NULL,
     documentation character varying NOT NULL,
-    CONSTRAINT cohortinstance_assessment_item_pkey PRIMARY KEY (_id),
+    CONSTRAINT cohortinstance_assessment_item_pkey PRIMARY KEY (id),
     CONSTRAINT cohortinstance_assessment_item_assessment_item_type_fk FOREIGN KEY (assessment_item_type) REFERENCES met.assessment_item_type (code)
 );
 COMMENT ON TABLE met.cohortinstance_assessment_item IS 'Describes cohortinstance assessment items(can contain multiple variables/columns).';
@@ -111,7 +159,7 @@ CREATE UNIQUE INDEX cohortinstance_assessment_item_cohortinstance_assessment_ite
 -- DROP TABLE met.cohortinstance_assessment_item_variable;
 CREATE TABLE met.cohortinstance_assessment_item_variable
 (
-    _id integer NOT NULL GENERATED ALWAYS AS IDENTITY ( INCREMENT 1 START 1 MINVALUE 1 MAXVALUE 2147483647 CACHE 1 ),
+    id integer NOT NULL GENERATED ALWAYS AS IDENTITY ( INCREMENT 1 START 1 MINVALUE 1 MAXVALUE 2147483647 CACHE 1 ),
     cohortinstance_assessment_item integer NOT NULL,
     variable_descriptor met.varcharcodeletnum_lc NOT NULL,
     variable_original_descriptor character varying(100),
@@ -119,11 +167,12 @@ CREATE TABLE met.cohortinstance_assessment_item_variable
     variable_max integer,
     variable_alt_int integer[],
     variable_alt_string character varying(100)[],
-    CONSTRAINT cohortinstance_assessment_item_variable_pkey PRIMARY KEY (_id),
-    CONSTRAINT cohortinstance_assessment_item_variable_cohortinstance_assessment_item_fk FOREIGN KEY (cohortinstance_assessment_item) REFERENCES met.cohortinstance_assessment_item(_id)
+    CONSTRAINT cohortinstance_assessment_item_variable_pkey PRIMARY KEY (id),
+    CONSTRAINT cohortinstance_assessment_item_variable_cohortinstance_assessment_item_fk FOREIGN KEY (cohortinstance_assessment_item) REFERENCES met.cohortinstance_assessment_item(id)
 );
 COMMENT ON TABLE met.cohortinstance_assessment_item_variable IS 'Describes variables relating to each assessment item in a cohortinstance extraction and a table column in a corresponding phenotypic data table.';
 CREATE UNIQUE INDEX cohortinstance_assessment_item_variable_cohortinstance_assessment_item_variable_descriptor_u ON met.cohortinstance_assessment_item_variable (cohortinstance_assessment_item,variable_descriptor);
+
 
 /*
  * Convention for item columns in data tables:
