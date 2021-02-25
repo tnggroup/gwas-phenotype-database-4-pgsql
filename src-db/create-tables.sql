@@ -1,16 +1,4 @@
 
-CREATE TYPE met.sex AS ENUM ('male','female','both','other','unspecified');
-
-CREATE DOMAIN met.intpos AS integer CHECK (VALUE >= 0);
-CREATE DOMAIN met.intoneindex AS integer CHECK (VALUE > 0);
-CREATE DOMAIN met.intyearmodern AS integer CHECK (VALUE >= 1900 AND VALUE <=2199);
-CREATE DOMAIN met.varcharcodeletnum AS character varying(100) CHECK (VALUE ~* '^[A-Za-z0-9]+');
-CREATE DOMAIN met.varcharcodeletnum_lc AS character varying(100) CHECK (VALUE ~* '^[a-z0-9]+');
-CREATE DOMAIN met.varcharcodeletnum_uc AS character varying(100) CHECK (VALUE ~* '^[A-Z0-9]+');
-CREATE DOMAIN met.varcharcodesimple AS character varying(100) CHECK (VALUE ~* '^[A-Za-z0-9_\-\.]+');
-CREATE DOMAIN met.varcharcodesimple_lc AS character varying(100) CHECK (VALUE ~* '^[a-z0-9_\-\.]+');
-CREATE DOMAIN met.varcharcodesimple_uc AS character varying(100) CHECK (VALUE ~* '^[A-Z0-9_\-\.]+');
-
 BEGIN TRANSACTION;
 
 -- DROP TABLE met.reference;
@@ -27,6 +15,18 @@ CREATE TABLE met.reference
 );
 COMMENT ON TABLE met.reference IS 'References to publications.';
 CREATE UNIQUE INDEX reference_u ON met.reference (doi);
+
+CREATE TABLE IF NOT EXISTS met.country (
+  idnum integer NOT NULL,
+  iso met.countryiso_uc NOT NULL,
+  name varchar(80) NOT NULL,
+  nicename varchar(80) NOT NULL,
+  iso3 char(3),
+  numcode integer,
+  phonecode integer NOT NULL,
+  CONSTRAINT country_pkey PRIMARY KEY (iso),
+  CONSTRAINT country_idnum_u UNIQUE (idnum)
+);
 
 -- DROP TABLE met.population;
 CREATE TABLE met.population
@@ -99,6 +99,8 @@ CREATE TABLE met.phenotype_population_prevalence
     ancestry_population met.varcharcodesimple_lc NOT NULL,
     sex met.sex NOT NULL,
     geographical_reference_country character(2),
+    age_min intpos NOT NULL,
+    age_max intpos NOT NULL,
     reference integer NOT NULL,
     documentation character varying NOT NULL DEFAULT '',
     time_entry TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
@@ -107,8 +109,8 @@ CREATE TABLE met.phenotype_population_prevalence
     CONSTRAINT phenotype_population_prevalence_reference_fk FOREIGN KEY (reference) REFERENCES met.reference(id)
 );
 COMMENT ON TABLE met.phenotype_type IS 'Phenotype population prevalence estimates.';
-CREATE UNIQUE INDEX phenotype_population_prevalence_nocountry_u ON met.phenotype_population_prevalence(phenotype,ancestry_population,sex,reference) WHERE geographical_reference_country IS NULL;
-CREATE UNIQUE INDEX phenotype_population_prevalence_country_u ON met.phenotype_population_prevalence(phenotype,ancestry_population,sex,geographical_reference_country,reference) WHERE geographical_reference_country IS NOT NULL;
+CREATE UNIQUE INDEX phenotype_population_prevalence_nocountry_u ON met.phenotype_population_prevalence(phenotype,ancestry_population,sex,age_min,age_max,reference) WHERE geographical_reference_country IS NULL;
+CREATE UNIQUE INDEX phenotype_population_prevalence_country_u ON met.phenotype_population_prevalence(phenotype,ancestry_population,sex,geographical_reference_country,age_min,age_max,reference) WHERE geographical_reference_country IS NOT NULL;
 
 -- DROP TABLE met.assessment_type;
 CREATE TABLE met.assessment_type
@@ -173,7 +175,7 @@ CREATE TABLE met.cohort
     time_entry TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     time_change TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     CONSTRAINT cohort_pkey PRIMARY KEY (id),
-    CONSTRAINT cohort_primary_targeted_phenotype FOREIGN KEY (phenotype) REFERENCES met.phenotype(id),
+    CONSTRAINT cohort_primary_targeted_phenotype FOREIGN KEY (primary_targeted_phenotype) REFERENCES met.phenotype(id)
 );
 COMMENT ON TABLE met.cohort IS 'Cohorts referred to throughout the database.';
 CREATE UNIQUE INDEX cohort_u ON met.cohort (code,data_collection_country);
