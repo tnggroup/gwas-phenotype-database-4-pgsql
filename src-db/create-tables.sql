@@ -76,7 +76,8 @@ CREATE TABLE met.phenotype
     CONSTRAINT phenotype_phenotype_type_fk FOREIGN KEY (phenotype_type) REFERENCES met.phenotype_type(code)
 );
 CREATE UNIQUE INDEX phenotype_code_u ON met.phenotype (phenotype_type,code);
-
+ALTER TABLE met.phenotype ADD COLUMN IF NOT EXISTS id_gwasdb integer;
+ALTER TABLE met.phenotype ADD COLUMN IF NOT EXISTS code_gwasdb character varying(10);
 
 -- DROP TABLE met.phenotype_phenotype_category;
 CREATE TABLE met.phenotype_phenotype_category
@@ -98,19 +99,26 @@ CREATE TABLE met.phenotype_population_prevalence
     phenotype integer NOT NULL,
     ancestry_population met.varcharcodesimple_lc NOT NULL,
     sex met.sex NOT NULL,
-    geographical_reference_country character(2),
-    age_min intpos NOT NULL,
-    age_max intpos NOT NULL,
+    country_reference character(2),
+    age_min met.intpos NOT NULL,
+    age_max met.intpos NOT NULL,
+	estimate double precision NOT NULL,
+	sd double precision,
+	n integer,
+	is_meta_analysis boolean,
+	needs_update boolean,
     reference integer NOT NULL,
     documentation character varying NOT NULL DEFAULT '',
     time_entry TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     time_change TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),    
     CONSTRAINT phenotype_population_prevalence_pkey PRIMARY KEY (id),
+	CONSTRAINT phenotype_population_prevalence_ancestry_population_fk FOREIGN KEY (ancestry_population) REFERENCES met.population(code),
+	CONSTRAINT phenotype_population_prevalence_country_reference_fk FOREIGN KEY (country_reference) REFERENCES met.country(iso),
     CONSTRAINT phenotype_population_prevalence_reference_fk FOREIGN KEY (reference) REFERENCES met.reference(id)
 );
 COMMENT ON TABLE met.phenotype_type IS 'Phenotype population prevalence estimates.';
-CREATE UNIQUE INDEX phenotype_population_prevalence_nocountry_u ON met.phenotype_population_prevalence(phenotype,ancestry_population,sex,age_min,age_max,reference) WHERE geographical_reference_country IS NULL;
-CREATE UNIQUE INDEX phenotype_population_prevalence_country_u ON met.phenotype_population_prevalence(phenotype,ancestry_population,sex,geographical_reference_country,age_min,age_max,reference) WHERE geographical_reference_country IS NOT NULL;
+CREATE UNIQUE INDEX phenotype_population_prevalence_nocountry_u ON met.phenotype_population_prevalence(phenotype,ancestry_population,sex,age_min,age_max,reference) WHERE country_reference IS NULL;
+CREATE UNIQUE INDEX phenotype_population_prevalence_country_u ON met.phenotype_population_prevalence(phenotype,ancestry_population,sex,country_reference,age_min,age_max,reference) WHERE country_reference IS NOT NULL;
 
 -- DROP TABLE met.assessment_type;
 CREATE TABLE met.assessment_type
