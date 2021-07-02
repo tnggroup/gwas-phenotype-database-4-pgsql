@@ -1,4 +1,4 @@
-CREATE TYPE met.sex AS ENUM ('male','female','both','other','unspecified');
+CREATE TYPE met.sex AS ENUM ('male','female','other','mix','unspecified');
 
 CREATE DOMAIN met.intpos AS integer CHECK (VALUE >= 0);
 CREATE DOMAIN met.intoneindex AS integer CHECK (VALUE > 0);

@@ -1,3 +1,5 @@
+--TRUNCATE TABLE met.phenotype_population_prevalence RESTART IDENTITY CASCADE;
+
 CREATE OR REPLACE FUNCTION met.import_population_prevalences() RETURNS int AS $$
 DECLARE
     nkey int = -1;
@@ -12,9 +14,9 @@ BEGIN
 	
 	--Deal with missing phenotypes - show which to create manually
 	CREATE TEMP TABLE IF NOT EXISTS missing ON COMMIT DROP AS
-	SELECT DISTINCT trim(lower(popprev20210226.trait_code)) AS code
-	FROM johan.popprev20210226 LEFT OUTER JOIN met.phenotype
-	ON trim(lower(popprev20210226.trait_code))=phenotype.code WHERE phenotype.code IS NULL AND (phenotype.phenotype_type='dis' OR phenotype.phenotype_type='trt') ORDER BY code;
+	SELECT DISTINCT trim(lower(popprev.trait_code)) AS code
+	FROM johan.popprev20210311 popprev LEFT OUTER JOIN met.phenotype
+	ON trim(lower(popprev.trait_code))=phenotype.code WHERE phenotype.code IS NULL AND (phenotype.phenotype_type='dis' OR phenotype.phenotype_type='trt') ORDER BY code;
 	
 	IF EXISTS (SELECT 1 FROM missing)
 	THEN
@@ -25,7 +27,7 @@ BEGIN
 	RETURN -1;
 	END IF;
 	
-	FOR crec in (SELECT * FROM johan.popprev20210226 )
+	FOR crec in (SELECT * FROM johan.popprev20210311 )
 	LOOP
         RAISE NOTICE 'Processing: %', crec;
 		
@@ -77,6 +79,6 @@ ALTER FUNCTION met.import_population_prevalences()
 
 --SELECT * FROM met.phenotype ORDER BY phenotype.name;
 
-UPDATE johan.popprev20210226 SET trait_code='ocdi' WHERE popprev20210226.trait_code='OCD';
+UPDATE johan.popprev20210311 SET trait_code='ocdi' WHERE popprev20210311.trait_code='OCD';
   
 SELECT * FROM met.import_population_prevalences();
