@@ -129,7 +129,7 @@ CREATE TABLE met.phenotype_population_prevalence
     prevalence_6_month double precision,
     prevalence_6_month_se double precision,
     prevalence_12_month double precision,
-    prevalence_12_month_se dopuble precision,
+    prevalence_12_month_se double precision,
     sample_n integer,
     is_meta_analysis boolean,
     reference integer NOT NULL,
@@ -142,9 +142,7 @@ CREATE TABLE met.phenotype_population_prevalence
     CONSTRAINT phenotype_population_prevalence_country_reference_fk FOREIGN KEY (country_reference) REFERENCES met.country(iso),
     CONSTRAINT phenotype_population_prevalence_reference_fk FOREIGN KEY (reference) REFERENCES met.reference(id)
 );
-COMMENT ON TABLE met.phenotype_type IS 'Phenotype population prevalence estimates.';
-CREATE UNIQUE INDEX phenotype_population_prevalence_nocountry_u ON met.phenotype_population_prevalence(phenotype,ancestry_population,sex,age_min,age_max,reference) WHERE country_reference IS NULL;
-CREATE UNIQUE INDEX phenotype_population_prevalence_country_u ON met.phenotype_population_prevalence(phenotype,ancestry_population,sex,country_reference,age_min,age_max,reference) WHERE country_reference IS NOT NULL;
+COMMENT ON TABLE met.phenotype_population_prevalence IS 'Phenotype population prevalence estimates.';
 
 -- DROP TABLE met.assessment_type;
 CREATE TABLE met.assessment_type
@@ -234,6 +232,7 @@ CREATE TABLE met.cohortstage
 );
 COMMENT ON TABLE met.cohortstage IS 'Stages of a cohort data collection.';
 CREATE UNIQUE INDEX cohortstage_u ON met.cohortstage (cohort,code);
+CREATE UNIQUE INDEX cohortstage_u2 ON met.cohortstage (cohort,id);
 
 -- DROP TABLE met.cohortinstance;
 CREATE TABLE met.cohortinstance
@@ -246,17 +245,18 @@ CREATE TABLE met.cohortinstance
     documentation character varying NOT NULL DEFAULT '',
     time_entry TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     time_change TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-    CONSTRAINT cohortinstance_pkey PRIMARY KEY (cohort,code),
+    CONSTRAINT cohortinstance_pkey PRIMARY KEY (id),
     CONSTRAINT cohortinstance_cohort_fk FOREIGN KEY (cohort) REFERENCES met.cohort (id),
     CONSTRAINT cohortinstance_reference_fk FOREIGN KEY (reference) REFERENCES met.reference(id)
 );
 COMMENT ON TABLE met.cohortinstance IS 'Instances of cohort data referring to specific phenotype data tables in the database for the assessments made.';
 CREATE UNIQUE INDEX cohortinstance_u ON met.cohortinstance (cohort,code);
+CREATE UNIQUE INDEX cohortinstance_u2 ON met.cohortinstance (cohort,id);
 
 -- DROP TABLE met.cohort_phenotype_sex_population;
 CREATE TABLE met.cohort_phenotype_sex_population
 (
-    cohort integer NOT NULL,
+	cohort integer NOT NULL,
     cohortstage integer NOT NULL,
     cohortinstance integer NOT NULL,
     phenotype integer NOT NULL,
@@ -284,7 +284,7 @@ CREATE TABLE met.cohort_assessment_item
     assessment integer NOT NULL,
     item_descriptor met.varcharcodeletnum_lc NOT NULL,
     item_original_descriptor character varying(100) NOT NULL,
-    item_original_name character varying NOT NULL,
+    item_name character varying NOT NULL,
     item_index met.intoneindex NOT NULL,
     assessment_item_type met.varcharcodeletnum_lc NOT NULL,
     item_text character varying NOT NULL,
@@ -297,7 +297,7 @@ CREATE TABLE met.cohort_assessment_item
     CONSTRAINT cohort_assessment_item_assessment_item_type_fk FOREIGN KEY (assessment_item_type) REFERENCES met.assessment_item_type (code)
 );
 COMMENT ON TABLE met.cohort_assessment_item IS 'Describes cohortinstance assessment items(can contain multiple variables/columns).';
-CREATE UNIQUE INDEX cohort_assessment_item_u ON met.cohortinstance_assessment_item (cohort,cohortstage,cohortinstance,assessment,item_descriptor);
+CREATE UNIQUE INDEX cohort_assessment_item_u ON met.cohort_assessment_item (cohort,cohortstage,cohortinstance,assessment,item_descriptor);
 
 -- DROP TABLE met.cohort_assessment_item_variable;
 CREATE TABLE met.cohort_assessment_item_variable
@@ -307,8 +307,10 @@ CREATE TABLE met.cohort_assessment_item_variable
     variable_descriptor met.varcharcodeletnum_lc NOT NULL,
     variable_original_descriptor character varying(100),
     variable_index met.intoneindex NOT NULL,
-    variable_min integer,
-    variable_max integer,
+	variable_name character varying,
+	variable_text character varying,
+    variable_int_min_limit integer,
+    variable_int_max_limit integer,
     variable_alt_int integer[],
     variable_alt_string character varying(100)[],
     time_entry TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
@@ -317,7 +319,7 @@ CREATE TABLE met.cohort_assessment_item_variable
     CONSTRAINT cohort_assessment_item_variable_cohort_assessment_item_fk FOREIGN KEY (cohort_assessment_item) REFERENCES met.cohort_assessment_item(id)
 );
 COMMENT ON TABLE met.cohort_assessment_item_variable IS 'Describes variables relating to each assessment item in a cohortinstance extraction and a table column in a corresponding phenotypic data table.';
-CREATE UNIQUE INDEX cohort_assessment_item_variable_cohort_assessment_item_variable_descriptor_u ON met.cohortinstance_assessment_item_variable (cohortinstance_assessment_item,variable_descriptor);
+CREATE UNIQUE INDEX cohort_assessment_item_variable_cohort_assessment_item_variable_descriptor_u ON met.cohort_assessment_item_variable (cohort_assessment_item,variable_descriptor);
 
 
 /*
