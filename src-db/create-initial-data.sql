@@ -1,3 +1,4 @@
+/*
 INSERT INTO met.population(code,name,documentation) VALUES('hm3asw','African ancestry in Southwest USA','HapMap 3 African ancestry in Southwest USA.');
 INSERT INTO met.population(code,name,documentation) VALUES('hm3ceu','Utah residents with Northern and Western European ancestry from the CEPH collection','HapMap 3 Utah residents with Northern and Western European ancestry from the CEPH collection.');
 INSERT INTO met.population(code,name,documentation) VALUES('hm3chb','Han Chinese in Beijing, China','HapMap 3 Han Chinese in Beijing, China.');
@@ -9,6 +10,12 @@ INSERT INTO met.population(code,name,documentation) VALUES('hm3mxl','Mexican anc
 INSERT INTO met.population(code,name,documentation) VALUES('hm3mkk','Maasai in Kinyawa, Kenya','HapMap 3 Maasai in Kinyawa, Kenya.');
 INSERT INTO met.population(code,name,documentation) VALUES('hm3tsi','Toscani in Italia','HapMap 3 Toscani in Italia.');
 INSERT INTO met.population(code,name,documentation) VALUES('hm3yri','Yoruba in Ibadan, Nigeria','HapMap 3 Yoruba in Ibadan, Nigeria.');
+*/
+/*
+These are standardised ancestry categories copied from the NHGRI-EBI GWAS Catalog
+Morales, J. et al. A standardized framework for representation of ancestry data in genomics studies, with application to the NHGRI-EBI GWAS Catalog. Genome Biol. 19, 21 (2018).
+https://genomebiology.biomedcentral.com/articles/10.1186/s13059-018-1396-2
+*/
 INSERT INTO met.population(code,name,documentation) VALUES('ausabr','Aboriginal Australian','Includes individuals who either self-report or have been described by authors as Australian Aboriginal. These are expected to be descendants of early human migration into Australia from Eastern Asia and can be distinguished from other Asian populations by mtDNA and Y chromosome variation.');
 INSERT INTO met.population(code,name,documentation) VALUES('amcarafr','African American or Afro-Caribbean','Includes individuals who either self-report or have been described by authors as African American or Afro-Caribbean. This category also includes individuals who genetically cluster with reference populations from this region, for example, 1000 Genomes and/or HapMap ACB or ASW populations. We note that there is likely to be significant admixture with European ancestry populations.');
 INSERT INTO met.population(code,name,documentation) VALUES('afr','African unspecified','Includes individuals that either self-report or have been described as African, but there was not sufficient information to allow classification as African American, Afro-Caribbean or Sub-Saharan African.');
@@ -27,9 +34,14 @@ INSERT INTO met.population(code,name,documentation) VALUES('seas','South East As
 INSERT INTO met.population(code,name,documentation) VALUES('afrss','Sub-Saharan African','Includes individuals who either self-report or have been described by authors as Sub-Saharan African or one of the sub-populations from this region (e.g., Yoruban). This category also includes individuals who genetically cluster with reference populations from this region, for example, 1000 Genomes and/or HapMap ESN, LWK, GWD, MSL, MKK, and YRI populations.');
 INSERT INTO met.population(code,name,documentation) VALUES('multi','Multiple populations','Category to represent combinations of multiple populations which may correspond tother populations referred to in the database.');
 
-INSERT INTO met.phenotype_type(code,name,documentation) VALUES('trt','Trait','A human phenotypic trait that is not a disorder.');
+INSERT INTO met.phenotype_type(code,name,documentation) VALUES('trt','Trait','A human phenotypic trait that is not a disorder or of such severity to be treated as a disorder.');
 INSERT INTO met.phenotype_type(code,name,documentation) VALUES('dis','Disorder','A human phenotypic trait that can be considered a disorder.');
 INSERT INTO met.phenotype_type(code,name,documentation) VALUES('bio','Biomarker','A human biomarker type trait.');
+
+INSERT INTO met.phenotype_assessment_type(code,name,documentation) VALUES('multi','Multiple','Multiple different assessment types mixed together.');
+INSERT INTO met.phenotype_assessment_type(code,name,documentation) VALUES('spec','Specialist','Specialist assessment such as an interview type assessment or self-reported reference to a specialist assessment or diagnosis.');
+INSERT INTO met.phenotype_assessment_type(code,name,documentation) VALUES('self','Self-report','Self-reported assessment of oneself.');
+INSERT INTO met.phenotype_assessment_type(code,name,documentation) VALUES('close','Close-report','Assessment made by a person close to the subject, such as a parent.');
 
 INSERT INTO met.phenotype_category(code,name,documentation) VALUES('anthropometric','Anthropometric','');
 INSERT INTO met.phenotype_category(code,name,documentation) VALUES('autoimmune','Autoimmune','');
@@ -44,9 +56,22 @@ INSERT INTO met.phenotype_category(code,name,documentation) VALUES('metabolism: 
 INSERT INTO met.phenotype_category(code,name,documentation) VALUES('metabolism: other','Metabolism: other','');
 INSERT INTO met.phenotype_category(code,name,documentation) VALUES('musculoskeletal and connective','Musculoskeletal and connective','');
 INSERT INTO met.phenotype_category(code,name,documentation) VALUES('nervous system','Nervous system','');
-INSERT INTO met.phenotype_category(code,name,documentation) VALUES('other','Other','');
+--INSERT INTO met.phenotype_category(code,name,documentation) VALUES('other','Other','');
 INSERT INTO met.phenotype_category(code,name,documentation) VALUES('respiratory','Respiratory','');
 INSERT INTO met.phenotype_category(code,name,documentation) VALUES('skin','Skin','');
+
+INSERT INTO met.assessment_type(code,name,documentation) VALUES('questionnaire','Questionnaire','A questionnaire type of assessment, either on paper or digitally distributed.');
+INSERT INTO met.assessment_type(code,name,documentation) VALUES('interview','Interview','An interview type of assessment.');
+INSERT INTO met.assessment_type(code,name,documentation) VALUES('imaging','Imaging','Imaging type measurement.');
+INSERT INTO met.assessment_type(code,name,documentation) VALUES('biosample','Biological sample','Assessment made on a biological sample.');
+INSERT INTO met.assessment_type(code,name,documentation) VALUES('test_cognitive','Cognitive test','A cognitive test performed using either a technical platform or other means to assess the result.');
+INSERT INTO met.assessment_type(code,name,documentation) VALUES('probe','Probe','Any kind of non-imaging technical measurement.');
+
+INSERT INTO met.assessment_item_type(code,name,documentation) VALUES('single','Single','A single-coded item. Can have choices to choose from and an <quote>other<unquote> type text entry attached.' );
+INSERT INTO met.assessment_item_type(code,name,documentation) VALUES('multi','Multi','A multi-coded item. Can have choices to choose from and an <quote>other<unquote> type text entry attached to either of the multiple choices.' );
+
+INSERT INTO met.summary_type(code,name,documentation) VALUES('phenotype_population_prevalence','Phenotype population prevalence','Population prevalence estimates for phenotypes.' );
+INSERT INTO met.summary_type(code,name,documentation) VALUES('gwas_summary_statistic','GWAS summary statistic','Genome-wide association study summary statistics.' );
 
 INSERT INTO met.country (idnum, iso, name, nicename, iso3, numcode, phonecode) VALUES
 (1, 'AF', 'AFGHANISTAN', 'Afghanistan', 'AFG', 4, 93),
