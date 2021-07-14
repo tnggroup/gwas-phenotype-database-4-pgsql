@@ -41,7 +41,7 @@ CREATE TABLE met.population
     CONSTRAINT population_pkey PRIMARY KEY (code),
     CONSTRAINT population_code_u UNIQUE (code)
 );
-COMMENT ON TABLE met.population IS 'The populations referred to throughout the database for ancestry purposes or other. Initially includes groupings based on the NHGRI-EBI GWAS Catalog standard as well as the HapMap 3 populations but can be expanded beyond.';
+COMMENT ON TABLE met.population IS 'The populations referred to throughout the database for ancestry purposes or other. Initially includes groupings based on the NHGRI-EBI GWAS Catalog standard but can be expanded beyond.';
 
 -- DROP TABLE met.phenotype_type;
 CREATE TABLE met.phenotype_type
@@ -352,6 +352,7 @@ CREATE TABLE dat_protected.individual_cohortinstance_identifier
     individual integer NOT NULL,
 	cohortinstance integer NOT NULL,
 	identifier uuid NOT NULL DEFAULT gen_random_uuid(),
+	identifier_cohort met.varcharcodesimple_lc,
 	name_updated character varying,
 	name_more_updated character varying,
 	surname_updated character varying,
@@ -372,14 +373,7 @@ CREATE TABLE dat_protected.individual_cohortinstance_identifier
 	CONSTRAINT individual_cohortinstance_identifier_cohortinstance_fk FOREIGN KEY (cohortinstance) REFERENCES met.cohortinstance(id)
 );
 COMMENT ON TABLE dat_protected.individual_cohortinstance_identifier IS 'Individual person identifiers for use in database tables or elsewhere. These should be deleted to sever any associations with protected individual data across cohorts.';
-
-/*
- * Convention for item columns in data tables:
- * [ITEM CODE]_[ITEM VARIABLE CODE]
- * 
- * Columns with underscore in front are special purpose non-data item meta columns, for example the _id column used for row id in the table.
- */
-
+CREATE UNIQUE INDEX individual_cohortinstance_identifier_u ON dat_protected.individual_cohortinstance_identifier (individual,cohortinstance,identifier,identifier_cohort);
 
 -- DROP TABLE dat_summary.phenotype_population_prevalence;
 CREATE TABLE dat_summary.phenotype_population_prevalence
@@ -397,13 +391,19 @@ CREATE TABLE dat_summary.phenotype_population_prevalence
     time_change TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),    
     CONSTRAINT phenotype_population_prevalence_sum_fk FOREIGN KEY (sum) REFERENCES met.summary(id)
 );
-COMMENT ON TABLE met.phenotype_population_prevalence IS 'Phenotype population prevalence estimates.';
+COMMENT ON TABLE dat_summary.phenotype_population_prevalence IS 'Phenotype population prevalence estimates.';
 
 --TODO- Add the gwas_summary_statistic table
 
 /*
+ * Convention for item columns in cohort data tables:
+ * [ITEM CODE]_[ITEM VARIABLE CODE]
+ * 
+ * Columns with underscore in front are special purpose non-data item meta columns, for example the _id column used for row id in the table.
+ */
+
+/*
  * A template and test dat_cohort data concept table.
- * TODO - add country code to the convention structure.
  */
 -- DROP TABLE dat_cohort.tassessment_tcohort_country_tcohortinstance;
 CREATE TABLE dat_cohort.tassessment_tcohort_country_tcohortinstance
