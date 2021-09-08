@@ -1,3 +1,29 @@
+--DROP FUNCTION met.get_cohort_id;
+CREATE OR REPLACE FUNCTION met.get_cohort_id
+(
+	code met.varcharcodeletnum_lc,
+	data_collection_country character(2)
+) RETURNS int AS $$
+DECLARE
+    nid int = NULL;
+BEGIN
+	--use $ -notation if there is a collision between argument names and column names
+	SELECT id INTO nid FROM met.cohort WHERE cohort.code=$1 AND cohort.data_collection_country = $2;
+	
+	RETURN nid;
+END;
+$$ LANGUAGE plpgsql
+--SECURITY DEFINER
+SET search_path = met, pg_temp;
+ALTER FUNCTION met.get_cohort_id(
+	code met.varcharcodeletnum_lc,
+	data_collection_country character(2))
+  OWNER TO "phenodb_coworker";
+ 
+--SELECT met.get_cohort_id('covidcns','gb');
+
+
+-- NEEDS REVIEW!
 --TRUNCATE TABLE met.phenotype_phenotype_category;
 --TRUNCATE TABLE met.phenotype RESTART IDENTITY CASCADE;
 
@@ -70,6 +96,6 @@ ALTER FUNCTION met.create_phenotype_ignoresert(name character varying(100),
 	nid_gwasdb integer,
 	ncode_gwasdb met.varcharcodeletnum_lc,
 	reclevel integer)
-  OWNER TO "phenodb_metadata_editor";
+  OWNER TO "phenodb_coworker";
   
 --SELECT met.create_phenotype_upsert('ADHD symptoms','ADHD','trt','')

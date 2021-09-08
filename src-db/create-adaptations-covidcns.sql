@@ -3,7 +3,12 @@
  * assessment_cohort_country_cohortinstance
  */
  
- --TODO Add metadata entries!
+ -- metadata entries
+INSERT INTO met.cohort(code,name,data_collection_country,primary_targeted_phenotype,data_collection_sex,documentation) VALUES('covidcns','COVID-CNS','gb',1,'mix','The COVID-CNS cohort. To be updated.');
+INSERT INTO met.reference(doi,pmid,year,documentation) VALUES('10.1136/bmj.m3871','33051183',2020,'Neuropsychiatric complications of covid-19');
+INSERT INTO met.cohortstage(code,cohort,name,order_index) VALUES('bl',1,'Baseline',0);
+INSERT INTO met.cohortinstance(code,cohort,reference) VALUES('2021',1,1);
+
  
 -- DROP TABLE dat_cohort.qprospmetacog_covidcns_gb_2021;
 CREATE TABLE dat_cohort.qprospmetacog_covidcns_gb_2021

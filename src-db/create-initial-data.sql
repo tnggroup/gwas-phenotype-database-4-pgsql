@@ -34,6 +34,7 @@ INSERT INTO met.population(code,name,documentation) VALUES('seas','South East As
 INSERT INTO met.population(code,name,documentation) VALUES('afrss','Sub-Saharan African','Includes individuals who either self-report or have been described by authors as Sub-Saharan African or one of the sub-populations from this region (e.g., Yoruban). This category also includes individuals who genetically cluster with reference populations from this region, for example, 1000 Genomes and/or HapMap ESN, LWK, GWD, MSL, MKK, and YRI populations.');
 INSERT INTO met.population(code,name,documentation) VALUES('multi','Multiple populations','Category to represent combinations of multiple populations which may correspond tother populations referred to in the database.');
 
+INSERT INTO met.phenotype_type(code,name,documentation) VALUES('het','Heterogenous','A nonspecific collection of phenotypes that cannot be categorised more specifically.');
 INSERT INTO met.phenotype_type(code,name,documentation) VALUES('trt','Trait','A human phenotypic trait that is not a disorder or of such severity to be treated as a disorder.');
 INSERT INTO met.phenotype_type(code,name,documentation) VALUES('dis','Disorder','A human phenotypic trait that can be considered a disorder.');
 INSERT INTO met.phenotype_type(code,name,documentation) VALUES('bio','Biomarker','A human biomarker type trait.');
@@ -59,6 +60,10 @@ INSERT INTO met.phenotype_category(code,name,documentation) VALUES('nervous syst
 --INSERT INTO met.phenotype_category(code,name,documentation) VALUES('other','Other','');
 INSERT INTO met.phenotype_category(code,name,documentation) VALUES('respiratory','Respiratory','');
 INSERT INTO met.phenotype_category(code,name,documentation) VALUES('skin','Skin','');
+
+INSERT INTO met.phenotype(phenotype_type,code,name,documentation) VALUES('het','multi','Multiple phenotypes','Represents a collection of multiple phenotypes.');
+INSERT INTO met.phenotype(phenotype_type,code,name,documentation) VALUES('het','multiill','Multiple phenotypes, some ill','Represents a collection of multiple phenotypes, where some of the phenotypes are illness phenotypes such as psychiatric disorders or somatic problems.');
+INSERT INTO met.phenotype(phenotype_type,code,name,documentation) VALUES('het','multihealthy','Multiple phenotypes, healthy','Represents a collection of multiple phenotypes, where there is no or little prescence of illness phenotypes.');
 
 INSERT INTO met.assessment_type(code,name,documentation) VALUES('questionnaire','Questionnaire','A questionnaire type of assessment, either on paper or digitally distributed.');
 INSERT INTO met.assessment_type(code,name,documentation) VALUES('interview','Interview','An interview type of assessment.');

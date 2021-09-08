@@ -208,7 +208,7 @@ CREATE TABLE met.cohortinstance
 	id integer NOT NULL GENERATED ALWAYS AS IDENTITY ( INCREMENT 1 START 1 MINVALUE 1 MAXVALUE 2147483647 CACHE 1 ),
     code met.varcharcodeletnum_lc NOT NULL,
 	cohort integer NOT NULL,
-    time_extraction TIMESTAMP WITH TIME ZONE NOT NULL,
+    time_extraction TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     reference integer NOT NULL,
     documentation character varying NOT NULL DEFAULT '',
     time_entry TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
