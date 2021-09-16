@@ -172,6 +172,7 @@ CREATE TABLE met.cohort
     id integer NOT NULL GENERATED ALWAYS AS IDENTITY ( INCREMENT 1 START 1 MINVALUE 1 MAXVALUE 2147483647 CACHE 1 ),
     code met.varcharcodeletnum_lc NOT NULL,
     name character varying NOT NULL,
+    abbreviation CHARACTER VARYING NOT NULL,
     data_collection_country character(2) NOT NULL, 
     primary_targeted_phenotype integer NOT NULL,
     data_collection_sex met.sex NOT NULL,
@@ -182,7 +183,7 @@ CREATE TABLE met.cohort
     CONSTRAINT cohort_primary_targeted_phenotype FOREIGN KEY (primary_targeted_phenotype) REFERENCES met.phenotype(id)
 );
 COMMENT ON TABLE met.cohort IS 'Cohorts referred to throughout the database.';
-CREATE UNIQUE INDEX cohort_u ON met.cohort (code,data_collection_country);
+CREATE UNIQUE INDEX cohort_u ON met.cohort (code);
 
 -- DROP TABLE met.cohortstage;
 CREATE TABLE met.cohortstage

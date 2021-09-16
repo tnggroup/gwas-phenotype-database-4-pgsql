@@ -1,14 +1,13 @@
 --DROP FUNCTION met.get_cohort_id;
 CREATE OR REPLACE FUNCTION met.get_cohort_id
 (
-	code met.varcharcodeletnum_lc,
-	data_collection_country character(2)
+	code met.varcharcodeletnum_lc
 ) RETURNS int AS $$
 DECLARE
     nid int = NULL;
 BEGIN
 	--use $ -notation if there is a collision between argument names and column names
-	SELECT id INTO nid FROM met.cohort WHERE cohort.code=$1 AND cohort.data_collection_country = $2;
+	SELECT id INTO nid FROM met.cohort WHERE cohort.code=$1;
 	
 	RETURN nid;
 END;
@@ -16,11 +15,31 @@ $$ LANGUAGE plpgsql
 --SECURITY DEFINER
 SET search_path = met, pg_temp;
 ALTER FUNCTION met.get_cohort_id(
-	code met.varcharcodeletnum_lc,
-	data_collection_country character(2))
+	code met.varcharcodeletnum_lc)
   OWNER TO "phenodb_coworker";
  
---SELECT met.get_cohort_id('covidcns','gb');
+--SELECT met.get_cohort_id('covidcns');
+
+--DROP FUNCTION met.get_reference_by_doi;
+CREATE OR REPLACE FUNCTION met.get_reference_by_doi
+(
+	doi character varying
+) RETURNS int AS $$
+DECLARE
+    nid int = NULL;
+BEGIN
+	--use $ -notation if there is a collision between argument names and column names
+	SELECT id INTO nid FROM met.reference WHERE reference.doi=$1;
+	RETURN nid;
+END;
+$$ LANGUAGE plpgsql
+--SECURITY DEFINER
+SET search_path = met, pg_temp;
+ALTER FUNCTION met.get_reference_by_doi(
+	doi character varying)
+  OWNER TO "phenodb_coworker";
+ 
+--SELECT met.get_reference_by_doi('10.1136/bmj.m3871');
 
 
 -- NEEDS REVIEW!
