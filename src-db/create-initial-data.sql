@@ -62,18 +62,18 @@ INSERT INTO met.phenotype_category(code,name,documentation) VALUES('respiratory'
 INSERT INTO met.phenotype_category(code,name,documentation) VALUES('skin','Skin','');
 
 INSERT INTO met.phenotype(phenotype_type,code,name,documentation) VALUES('het','multi','Multiple phenotypes','Represents a collection of multiple phenotypes.');
-INSERT INTO met.phenotype(phenotype_type,code,name,documentation) VALUES('het','multiill','Multiple phenotypes, some ill','Represents a collection of multiple phenotypes, where some of the phenotypes are illness phenotypes such as psychiatric disorders or somatic problems.');
-INSERT INTO met.phenotype(phenotype_type,code,name,documentation) VALUES('het','multihealthy','Multiple phenotypes, healthy','Represents a collection of multiple phenotypes, where there is no or little prescence of illness phenotypes.');
+INSERT INTO met.phenotype(phenotype_type,code,name,documentation) VALUES('het','multimorbid','Multiple phenotypes, some morbid','Represents a collection of multiple phenotypes, where some of the phenotypes are morbidity associated phenotypes such as psychiatric disorders or somatic morbidity.');
+INSERT INTO met.phenotype(phenotype_type,code,name,documentation) VALUES('het','multihealthy','Multiple phenotypes, healthy','Represents a collection of multiple phenotypes, where there is no or little presence of morbidity.');
 
 INSERT INTO met.assessment_type(code,name,documentation) VALUES('questionnaire','Questionnaire','A questionnaire type of assessment, either on paper or digitally distributed.');
 INSERT INTO met.assessment_type(code,name,documentation) VALUES('interview','Interview','An interview type of assessment.');
 INSERT INTO met.assessment_type(code,name,documentation) VALUES('imaging','Imaging','Imaging type measurement.');
 INSERT INTO met.assessment_type(code,name,documentation) VALUES('biosample','Biological sample','Assessment made on a biological sample.');
-INSERT INTO met.assessment_type(code,name,documentation) VALUES('test_cognitive','Cognitive test','A cognitive test performed using either a technical platform or other means to assess the result.');
+INSERT INTO met.assessment_type(code,name,documentation) VALUES('cognitive','Cognitive test','A cognitive test performed using either a technical platform or other means to assess the result.');
 INSERT INTO met.assessment_type(code,name,documentation) VALUES('probe','Probe','Any kind of non-imaging technical measurement.');
 
-INSERT INTO met.assessment_item_type(code,name,documentation) VALUES('single','Single','A single-coded item. Can have choices to choose from and an <quote>other<unquote> type text entry attached.' );
-INSERT INTO met.assessment_item_type(code,name,documentation) VALUES('multi','Multi','A multi-coded item. Can have choices to choose from and an <quote>other<unquote> type text entry attached to either of the multiple choices.' );
+INSERT INTO met.assessment_item_type(assessment_type,code,name,abbreviation,documentation) VALUES('questionnaire','single','Single','Single','A single-coded item. Can have choices to choose from and an <quote>other<unquote> type text entry attached.' );
+INSERT INTO met.assessment_item_type(assessment_type,code,name,abbreviation,documentation) VALUES('questionnaire','multi','Multi','Multi','A multi-coded item. Can have choices to choose from and an <quote>other<unquote> type text entry attached to either of the multiple choices.' );
 
 INSERT INTO met.summary_type(code,name,documentation) VALUES('phenotype_population_prevalence','Phenotype population prevalence','Population prevalence estimates for phenotypes.' );
 INSERT INTO met.summary_type(code,name,documentation) VALUES('gwas_summary_statistic','GWAS summary statistic','Genome-wide association study summary statistics.' );
