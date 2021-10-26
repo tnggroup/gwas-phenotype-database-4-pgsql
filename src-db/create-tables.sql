@@ -283,7 +283,6 @@ CREATE TABLE met.assessment_item_variable
 (
     id integer NOT NULL GENERATED ALWAYS AS IDENTITY ( INCREMENT 1 START 1 MINVALUE 1 MAXVALUE 2147483647 CACHE 1 ),
     assessment_item integer NOT NULL,
-    table_index integer NOT NULL DEFAULT 0,
     variable_code met.varcharcodeletnum_lc NOT NULL,
     variable_original_descriptor character varying(100),
     variable_index met.intoneindex NOT NULL,
@@ -306,7 +305,7 @@ CREATE TABLE met.assessment_item_variable
 );
 COMMENT ON TABLE met.assessment_item_variable IS 'Describes variables relating to each assessment item in a cohortinstance extraction and a table column in a corresponding phenotypic data table.';
 CREATE UNIQUE INDEX assessment_item_variable_cohort_assessment_item_variable_descriptor_u ON met.assessment_item_variable (assessment_item,variable_code);
-CREATE INDEX assessment_item_variable_i ON met.assessment_item_variable (id,table_index,assessment_item,variable_code,variable_index);
+CREATE INDEX assessment_item_variable_i ON met.assessment_item_variable (id,assessment_item,variable_code,variable_index);
 
 -- DROP TABLE met.summary_type;
 CREATE TABLE met.summary_type
@@ -396,6 +395,10 @@ CREATE TABLE sec.individual_cohortinstance_identifier
 COMMENT ON TABLE sec.individual_cohortinstance_identifier IS 'Individual person identifiers for use in database tables or elsewhere. These should be deleted to sever any associations with protected individual data across cohorts.';
 CREATE UNIQUE INDEX individual_cohortinstance_identifier_u ON sec.individual_cohortinstance_identifier (individual,cohortinstance,identifier,identifier_cohort);
 
+COMMIT;
+
+
+BEGIN TRANSACTION;
 -- DROP TABLE sum.phenotype_population_prevalence;
 CREATE TABLE sum.phenotype_population_prevalence
 (
@@ -416,6 +419,8 @@ COMMENT ON TABLE sum.phenotype_population_prevalence IS 'Phenotype population pr
 
 
 --TODO- Add the gwas_summary_statistic table
+COMMIT;
+
 
 /*
  * Convention for item columns in cohort data tables:
@@ -424,12 +429,13 @@ COMMENT ON TABLE sum.phenotype_population_prevalence IS 'Phenotype population pr
  * Columns with underscore in front are special purpose non-data item meta columns, for example the _id column used for row id in the table.
  */
 
+BEGIN TRANSACTION;
 /*
  * A template and test coh data concept table.
  */
 -- DROP TABLE coh.tcohort_tcohortinstance_tassessment_tassessmentversion;
 
-CREATE TABLE coh.tcohort_tcohortinstance_tassessment_tassessmentversion_0
+CREATE TABLE coh.tcohort_tcohortinstance_tassessment_tassessmentversion_1
 (
     _id integer NOT NULL GENERATED ALWAYS AS IDENTITY ( INCREMENT 1 START 1 MINVALUE 1 MAXVALUE 2147483647 CACHE 1 ),
     _stage met.varcharcodeletnum_lc NOT NULL,
@@ -442,9 +448,9 @@ CREATE TABLE coh.tcohort_tcohortinstance_tassessment_tassessmentversion_0
    	var_alt_multi1 integer[],
    	--var_alt_multi1_selection integer[5], --boolean encoding 0 - false, 1 - true, BUT expanded with space for additional codes
     var_alt_multi1_comment character varying(600)[],
-    CONSTRAINT tcohort_tcohortinstance_tassessment_tassessmentversion_0_pkey PRIMARY KEY (_id)
+    CONSTRAINT tcohort_tcohortinstance_tassessment_tassessmentversion_1_pkey PRIMARY KEY (_id)
 );
-COMMENT ON TABLE coh.tcohort_tcohortinstance_tassessment_tassessmentversion_0 IS 'Template and test cohortdata concept table.';
+COMMENT ON TABLE coh.tcohort_tcohortinstance_tassessment_tassessmentversion_1 IS 'Template and test cohortdata concept table.';
 
 --INSERT INTO coh.tcohort_tcohortinstance_tassessment(_stage,spid,sex,var_time,var_alt_single1,var_alt_single1_comment,var_alt_multi1,var_alt_multi1_comment) VALUES('bl','CCNS19139',1,'2020-01-03 04:05:06+02',3,'Other choice','{1,3,4}','{NULL,NULL,"A comment. Some text."}')
 
