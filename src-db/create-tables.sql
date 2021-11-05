@@ -261,7 +261,7 @@ CREATE TABLE met.assessment_item
     CONSTRAINT assessment_item_assessment_item_type_fk FOREIGN KEY (assessment_item_type) REFERENCES met.assessment_item_type (id)
 );
 COMMENT ON TABLE met.assessment_item IS 'Describes assessment items(can contain multiple variables/columns).';
-CREATE UNIQUE INDEX assessment_item_u ON met.assessment_item (assessment,assessment_item_type,item_code);
+CREATE UNIQUE INDEX assessment_item_u ON met.assessment_item (assessment,item_code);
 
 -- DROP TABLE met.data_storage_type;  --Do not use if using table setup
 /*
@@ -296,7 +296,7 @@ CREATE TABLE met.assessment_item_variable
     variable_unit CHARACTER VARYING,
     variable_alt_code character varying(100)[], --if the variable has alternatives to choose from, code
     variable_alt_text character varying(100)[], --corresponding descriptive texts of the variable alternatives
-    documentation character varying NOT NULL DEFAULT '',
+    --documentation character varying NOT NULL DEFAULT '', -- variable documentation is supposed to be placed in the comments of individual database columns instead
     time_entry TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     time_change TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     CONSTRAINT assessment_item_variable_pkey PRIMARY KEY (id),

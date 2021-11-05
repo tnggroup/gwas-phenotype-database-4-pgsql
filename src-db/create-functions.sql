@@ -420,13 +420,9 @@ ALTER FUNCTION met.create_cohortinstance_table(
 
  --SELECT met.create_cohortinstance_table('covidcns','2021','idpukbb','2021');
 
-/*DROP FUNCTION met.select_cohort_inventory(
-	cohort_code met.varcharcodeletnum_lc,
-	instance_code met.varcharcodeletnum_lc,
-	assessment_code met.varcharcodeletnum_lc,
-	assessment_version_code met.varcharcodeletnum_lc
-	);
-	*/
+
+ 
+/*
 CREATE OR REPLACE FUNCTION met.select_cohort_inventory
 (
 	cohort_code met.varcharcodeletnum_lc = NULL,
@@ -442,19 +438,28 @@ CREATE OR REPLACE FUNCTION met.select_cohort_inventory
 	OUT table_index information_schema.character_data,
 	OUT column_default information_schema.character_data,
 	OUT is_nullable information_schema.yes_or_no,
-	OUT data_type information_schema.character_data
+	OUT data_type information_schema.character_data,
+	OUT cohort_id int
 	
 ) AS $$
 
-	SELECT substring(table_name from '^(.+?)_') cohort_code, substring(table_name from '^.+?_(.*?)_') instance_code, substring(table_name from '^.+?_.*?_(.+?)_') assessment_code, substring(table_name from '^.+?_.*?_.+?_(.*?)_') assessment_version_code, substring(table_name from '_(\d+)$')::int table_index,
-	substring(column_name from '^([^_\n\r]+?)(_|$)') assessment_item_code,
-	substring(column_name from '^[^_\n\r]+?_(.+)$') assessment_item_variable_code,
-	columns.column_default,
-	columns.is_nullable,
-	columns.data_type
-	FROM information_schema.columns 
-	where table_schema='coh' AND ($1=cohort_code OR $1 IS NULL) AND ($2=instance_code OR $2 IS NULL) AND ($3=assessment_code OR $3 IS NULL) AND ($4=assessment_version_code OR $4 IS NULL)
-	ORDER BY table_name
+	WITH fi AS (SELECT
+				substring("table_name" from '^(.+?)_') cohort_code,
+				substring("table_name" from '^.+?_(.*?)_') instance_code,
+				substring("table_name" from '^.+?_.*?_(.+?)_') assessment_code,
+				substring("table_name" from '^.+?_.*?_.+?_(.*?)_') assessment_version_code,
+				substring("table_name" from '_(\d+)$')::int table_index,
+				substring("column_name" from '^([^_\n\r]+?)(_|$)') assessment_item_code,
+				substring("column_name" from '^[^_\n\r]+?_(.+)$') assessment_item_variable_code,
+				columns.column_default,
+				columns.is_nullable,
+				columns.data_type
+				FROM information_schema.columns where table_catalog='phenodb' AND table_schema='coh'
+			   )
+	SELECT fi.*, cohort.id AS cohort_id
+	FROM fi LEFT OUTER JOIN met.cohort ON fi.cohort_code=cohort.code
+	where ($1=fi.cohort_code OR $1 IS NULL) AND ($2=fi.instance_code OR $2 IS NULL) AND ($3=fi.assessment_code OR $3 IS NULL) AND ($4=fi.assessment_version_code OR $4 IS NULL)
+	ORDER BY cohort_code,instance_code,assessment_code,assessment_version_code,assessment_item_code,assessment_item_variable_code
 
 
 $$ LANGUAGE sql;
@@ -467,9 +472,10 @@ ALTER FUNCTION met.select_cohort_inventory(
 	assessment_version_code met.varcharcodeletnum_lc
 	)
   OWNER TO "phenodb_coworker";
-
-
-CREATE OR REPLACE FUNCTION met.get_cohortintance_table_number
+ */
+--SELECT * FROM met.select_cohort_inventory('covidcns','2021','idpukbb','2021');
+ 
+CREATE OR REPLACE FUNCTION met.get_cohortintance_table_index
 (
 	cohort_code met.varcharcodeletnum_lc,
 	instance_code met.varcharcodeletnum_lc,
@@ -478,25 +484,67 @@ CREATE OR REPLACE FUNCTION met.get_cohortintance_table_number
 ) RETURNS int AS $$
 DECLARE
     toreturn int=NULL;
+	columncount int=NULL;
 BEGIN
 
-
-	SELECT max();
-
-
-	RETURN toreturn;
+	SELECT COUNT(cohort_inventory.cohort_code), max(cohort_inventory.table_index) INTO columncount,toreturn FROM met.cohort_inventory
+	WHERE
+		cohort_inventory.cohort_code=$1
+	AND cohort_inventory.instance_code=$2
+	AND cohort_inventory.assessment_code=$3
+	AND cohort_inventory.assessment_version_code=$4;
+	
+	IF columncount<500
+	THEN RETURN toreturn;
+	ELSE RETURN (toreturn+1);
+	END IF;
 END;
 $$ LANGUAGE plpgsql;
 --SECURITY DEFINER
 --SET search_path = met, pg_temp;
-ALTER FUNCTION met.check_assessment_item_variable(
+ALTER FUNCTION met.get_cohortintance_table_index(
 	cohort_code met.varcharcodeletnum_lc,
 	instance_code met.varcharcodeletnum_lc,
 	assessment_code met.varcharcodeletnum_lc,
 	assessment_version_code met.varcharcodeletnum_lc
 	)
   OWNER TO "phenodb_coworker";
+  
+--SELECT met.get_cohortintance_table_index('covidcns','2021','idpukbb','2021');
+
+CREATE OR REPLACE FUNCTION met._get_cohortintance_table_index
+(
+	cohortinstance_id int,
+	assessment_id int
+) RETURNS int AS $$
+DECLARE
+    toreturn int=NULL;
+	columncount int=NULL;
+BEGIN
+
+	SELECT COUNT(cohort_inventory.cohort_code), max(cohort_inventory.table_index) INTO columncount,toreturn FROM met.cohort_inventory
+	WHERE
+		cohort_inventory.cohortinstance_id=$1
+	AND cohort_inventory.assessment_id=$2;
+	
+	IF columncount<500
+	THEN RETURN toreturn;
+	ELSE RETURN (toreturn+1);
+	END IF;
+END;
+$$ LANGUAGE plpgsql;
+--SECURITY DEFINER
+--SET search_path = met, pg_temp;
+ALTER FUNCTION met._get_cohortintance_table_index(
+	cohortinstance_id int,
+	assessment_id int
+	)
+  OWNER TO "phenodb_coworker";
+  
+ --SELECT met._get_cohortintance_table_index(1,1);
+
  
+--TODO IN PROGRESS HERE!! 
 CREATE OR REPLACE FUNCTION met.check_assessment_item_variable
 (
 	cohort_code met.varcharcodeletnum_lc,
@@ -505,7 +553,7 @@ CREATE OR REPLACE FUNCTION met.check_assessment_item_variable
 	assessment_version_code met.varcharcodeletnum_lc,
 	assessment_item_code met.varcharcodeletnum_lc,
 	variable_code met.varcharcodeletnum_lc,
-	table_index int default 0
+	table_index int default 1
 ) RETURNS boolean AS $$
 DECLARE
     toreturn boolean = FALSE;
