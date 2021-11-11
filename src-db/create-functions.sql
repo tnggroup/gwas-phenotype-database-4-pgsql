@@ -165,37 +165,33 @@ ALTER FUNCTION met.get_assessment_item_type(
 CREATE OR REPLACE FUNCTION met._select_assessment_item_by_fuzzy_item_text
 (
 	assessment_id int,
-	assessment_item_type int,
 	source_text character varying(255)
 ) RETURNS TABLE(assessment_item_id int, _ldistance int) AS $$
 	
-	SELECT assessment_item.id, levenshtein($3,assessment_item.item_text) ld FROM met.assessment_item 
-	WHERE assessment_item.assessment=$1 AND assessment_item.assessment_item_type=$2 order by ld
+	SELECT assessment_item.id, levenshtein($2,assessment_item.item_text) ld FROM met.assessment_item 
+	WHERE assessment_item.assessment=$1 order by ld
 
 $$ LANGUAGE sql;
 --SECURITY DEFINER
 --SET search_path = met, pg_temp;
 ALTER FUNCTION met._select_assessment_item_by_fuzzy_item_text(
 	assessment_id int,
-	assessment_item_type int,
 	source_text character varying(255)
 	)
   OWNER TO "phenodb_coworker";
---select met._select_assessment_item_by_fuzzy_item_text(1,3,'What is name?')
+--select met._select_assessment_item_by_fuzzy_item_text(1,'What is name?')
  
  --DROP FUNCTION met._get_assessment_item;
 CREATE OR REPLACE FUNCTION met._get_assessment_item
 (
 	assessment_id int,
-    assessment_item_type int,
 	assessment_item_code met.varcharcodeletnum_lc
 ) RETURNS int AS $$
 DECLARE
     nid int = NULL;
 BEGIN
 	SELECT assessment_item.id INTO nid FROM met.assessment_item 
-	WHERE assessment_item.assessment=$1 AND assessment_item.assessment_item_type=$2
-	AND assessment_item.code=$4;
+	WHERE assessment_item.assessment=$1 AND assessment_item.item_code=$2;
 	RETURN nid;
 END;
 $$ LANGUAGE plpgsql;
@@ -203,35 +199,30 @@ $$ LANGUAGE plpgsql;
 --SET search_path = met, pg_temp;
 ALTER FUNCTION met._get_assessment_item(
 	assessment_id int,
-    assessment_item_type int,
 	assessment_item_code met.varcharcodeletnum_lc
 	)
   OWNER TO "phenodb_coworker";
---select met._get_assessment_item(1,3,'myitem')
+--select met._get_assessment_item(1,'myitem')
 
  --DROP FUNCTION met.get_assessment_item;
 CREATE OR REPLACE FUNCTION met.get_assessment_item
 (
-	assessment_type met.varcharcodeletnum_lc,
 	assessment_code met.varcharcodeletnum_lc,
 	assessment_version_code met.varcharcodeletnum_lc,
-	assessment_item_type_code met.varcharcodesimple_lc,
 	assessment_item_code met.varcharcodeletnum_lc
 ) RETURNS int AS $$
 DECLARE
     nid int = NULL;
 BEGIN
-	SELECT _get_assessment_item(met.get_assessment($2,$3),met.get_assessment_item_type($1,$4),$5) INTO nid;
+	SELECT _get_assessment_item(met.get_assessment($1,$2),$3) INTO nid;
 	RETURN nid;
 END;
 $$ LANGUAGE plpgsql;
 --SECURITY DEFINER
 --SET search_path = met, pg_temp;
 ALTER FUNCTION met.get_assessment_item(
-	assessment_type met.varcharcodeletnum_lc,
 	assessment_code met.varcharcodeletnum_lc,
 	assessment_version_code met.varcharcodeletnum_lc,
-	assessment_item_type_code met.varcharcodesimple_lc,
 	assessment_item_code met.varcharcodeletnum_lc
 	)
   OWNER TO "phenodb_coworker";
@@ -338,13 +329,104 @@ ALTER FUNCTION met.construct_cohortinstance_column_name(
 	)
   OWNER TO "phenodb_coworker";
  
+CREATE OR REPLACE FUNCTION met.parse_cohort_code_from_table_name
+(
+	table_name text
+) RETURNS text AS $$
+BEGIN
+	return substring("table_name" from '^(.+?)_');
+END;
+$$ LANGUAGE plpgsql;
+ALTER FUNCTION met.parse_cohort_code_from_table_name(
+	table_name text
+	)
+  OWNER TO "phenodb_coworker";
+ 
+CREATE OR REPLACE FUNCTION met.parse_instance_code_from_table_name
+(
+	table_name text
+) RETURNS text AS $$
+BEGIN
+	return substring("table_name" from '^.+?_(.*?)_');
+END;
+$$ LANGUAGE plpgsql;
+ALTER FUNCTION met.parse_instance_code_from_table_name(
+	table_name text
+	)
+  OWNER TO "phenodb_coworker";
+
+CREATE OR REPLACE FUNCTION met.parse_assessment_code_from_table_name
+(
+	table_name text
+) RETURNS text AS $$
+BEGIN
+	return substring("table_name" from '^.+?_.*?_(.+?)_');
+END;
+$$ LANGUAGE plpgsql;
+ALTER FUNCTION met.parse_assessment_code_from_table_name(
+	table_name text
+	)
+  OWNER TO "phenodb_coworker";
+
+CREATE OR REPLACE FUNCTION met.parse_assessment_version_code_from_table_name
+(
+	table_name text
+) RETURNS text AS $$
+BEGIN
+	return substring("table_name" from '^.+?_.*?_.+?_(.*?)_');
+END;
+$$ LANGUAGE plpgsql;
+ALTER FUNCTION met.parse_assessment_version_code_from_table_name(
+	table_name text
+	)
+  OWNER TO "phenodb_coworker";
+
+CREATE OR REPLACE FUNCTION met.parse_table_index_from_table_name
+(
+	table_name text
+) RETURNS int AS $$
+BEGIN
+	return substring("table_name" from '_(\d+)$')::int;
+END;
+$$ LANGUAGE plpgsql;
+ALTER FUNCTION met.parse_table_index_from_table_name(
+	table_name text
+	)
+  OWNER TO "phenodb_coworker";
+  
+CREATE OR REPLACE FUNCTION met.parse_assessment_item_code_from_column_name
+(
+	column_name text
+) RETURNS text AS $$
+BEGIN
+	return substring("column_name" from '^([^_\n\r]+?)(_|$)');
+END;
+$$ LANGUAGE plpgsql;
+ALTER FUNCTION met.parse_assessment_item_code_from_column_name(
+	table_name text
+	)
+  OWNER TO "phenodb_coworker";
+
+CREATE OR REPLACE FUNCTION met.parse_assessment_item_variable_code_from_column_name
+(
+	column_name text
+) RETURNS text AS $$
+BEGIN
+	return substring("column_name" from '^[^_\n\r]+?_(.+)$');
+END;
+$$ LANGUAGE plpgsql;
+ALTER FUNCTION met.parse_assessment_item_variable_code_from_column_name(
+	table_name text
+	)
+  OWNER TO "phenodb_coworker";
+ 
  
 CREATE OR REPLACE FUNCTION met.verify_cohortinstance_assessment
 (
 	cohort_code met.varcharcodeletnum_lc,
 	instance_code met.varcharcodeletnum_lc,
 	assessment_code met.varcharcodeletnum_lc,
-	assessment_version_code met.varcharcodeletnum_lc
+	assessment_version_code met.varcharcodeletnum_lc =''
 ) RETURNS BOOLEAN AS $$
 DECLARE
     nid int = NULL;
@@ -512,7 +594,7 @@ ALTER FUNCTION met.get_cohortintance_table_index(
   
 --SELECT met.get_cohortintance_table_index('covidcns','2021','idpukbb','2021');
 
-CREATE OR REPLACE FUNCTION met._get_cohortintance_table_index
+CREATE OR REPLACE FUNCTION met._get_cohortinstance_table_index
 (
 	cohortinstance_id int,
 	assessment_id int
@@ -535,7 +617,7 @@ END;
 $$ LANGUAGE plpgsql;
 --SECURITY DEFINER
 --SET search_path = met, pg_temp;
-ALTER FUNCTION met._get_cohortintance_table_index(
+ALTER FUNCTION met._get_cohortinstance_table_index(
 	cohortinstance_id int,
 	assessment_id int
 	)
@@ -544,16 +626,12 @@ ALTER FUNCTION met._get_cohortintance_table_index(
  --SELECT met._get_cohortintance_table_index(1,1);
 
  
---TODO IN PROGRESS HERE!! 
-CREATE OR REPLACE FUNCTION met.check_assessment_item_variable
+CREATE OR REPLACE FUNCTION met._check_cohortinstance_assessment_item_variable
 (
-	cohort_code met.varcharcodeletnum_lc,
-	instance_code met.varcharcodeletnum_lc,
-	assessment_code met.varcharcodeletnum_lc,
-	assessment_version_code met.varcharcodeletnum_lc,
-	assessment_item_code met.varcharcodeletnum_lc,
-	variable_code met.varcharcodeletnum_lc,
-	table_index int default 1
+	cohortinstance_id int,
+	assessment_id int,
+	assessment_item_id int,
+	assessment_item_variable_id int
 ) RETURNS boolean AS $$
 DECLARE
     toreturn boolean = FALSE;
@@ -561,11 +639,9 @@ BEGIN
 
 	IF EXISTS
 	(
-		SELECT 1 
-		FROM information_schema.columns 
-		WHERE table_schema='coh'
-		AND table_name = met.construct_cohortinstance_table_name(cohort_code,instance_code,assessment_code,assessment_version_code,table_index)
-		AND column_name = met.construct_cohortinstance_column_name(assessment_item_code,variable_code)
+		SELECT 1 assessment_item_variable_id
+		FROM met.cohort_inventory
+		WHERE cohort_inventory.cohortinstance_id=$1 AND cohort_inventory.assessment_id=$2 AND cohort_inventory.assessment_item_id=$3 AND cohort_inventory.assessment_item_variable_id=$4
 	) THEN
 		toreturn:=TRUE;
 	END IF;
@@ -575,14 +651,49 @@ END;
 $$ LANGUAGE plpgsql;
 --SECURITY DEFINER
 --SET search_path = met, pg_temp;
-ALTER FUNCTION met.check_assessment_item_variable(
-	cohort_code met.varcharcodeletnum_lc,
-	instance_code met.varcharcodeletnum_lc,
-	assessment_code met.varcharcodeletnum_lc,
-	assessment_version_code met.varcharcodeletnum_lc,
-	assessment_item_code met.varcharcodeletnum_lc,
-	variable_code met.varcharcodeletnum_lc,
-	table_index int
+ALTER FUNCTION met._check_cohortinstance_assessment_item_variable(
+	cohortinstance_id int,
+	assessment_id int,
+	assessment_item_id int,
+	assessment_item_variable_id int
 	)
   OWNER TO "phenodb_coworker";
+  
+ --SELECT met._check_cohortinstance_assessment_item_variable(1,1,1,1)
+ 
+ 
+CREATE OR REPLACE FUNCTION met._check_cohortinstance_assessment_item_variable_from_column_name
+(
+	cohortinstance_id int,
+	assessment_id int,
+	column_name character varying
+) RETURNS boolean AS $$
+DECLARE
+    toreturn boolean = FALSE;
+BEGIN
+	
+	IF EXISTS
+	(
+		SELECT 1 assessment_item_variable_id
+		FROM met.cohort_inventory
+		WHERE cohort_inventory.cohortinstance_id=$1 AND cohort_inventory.assessment_id=$2 AND cohort_inventory.assessment_item_code=met.parse_assessment_item_code_from_column_name($3) AND cohort_inventory.assessment_item_variable_code=met.parse_assessment_item_variable_code_from_column_name($3)
+	) THEN
+		toreturn:=TRUE;
+	END IF;
+
+	RETURN toreturn;
+END;
+$$ LANGUAGE plpgsql;
+--SECURITY DEFINER
+--SET search_path = met, pg_temp;
+ALTER FUNCTION met._check_cohortinstance_assessment_item_variable_from_column_name(
+	cohortinstance_id int,
+	assessment_id int,
+	column_name character varying
+	)
+  OWNER TO "phenodb_coworker";
+  
+ --SELECT met._check_cohortinstance_assessment_item_variable_from_column_name(1,1,"item1_variable1")
+  
+ --SELECT met._check_cohortinstance_assessment_item_variable_from_column_name(1,1,"item1_variable1")
  
