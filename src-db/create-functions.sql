@@ -203,6 +203,7 @@ ALTER FUNCTION met._get_assessment_item(
 	)
   OWNER TO "phenodb_coworker";
 --select met._get_assessment_item(1,'myitem')
+--select met._get_assessment_item(met.get_assessment('covidcnsdem','1'),'test')
 
  --DROP FUNCTION met.get_assessment_item;
 CREATE OR REPLACE FUNCTION met.get_assessment_item
@@ -214,7 +215,7 @@ CREATE OR REPLACE FUNCTION met.get_assessment_item
 DECLARE
     nid int = NULL;
 BEGIN
-	SELECT _get_assessment_item(met.get_assessment($1,$2),$3) INTO nid;
+	SELECT met._get_assessment_item(met.get_assessment($1,$2),$3) INTO nid;
 	RETURN nid;
 END;
 $$ LANGUAGE plpgsql;
@@ -226,6 +227,8 @@ ALTER FUNCTION met.get_assessment_item(
 	assessment_item_code met.varcharcodeletnum_lc
 	)
   OWNER TO "phenodb_coworker";
+
+ --select met.get_assessment_item('covidcnsdem','1','test');
  
  
   --DROP FUNCTION met._get_assessment_item_variable;
@@ -254,7 +257,7 @@ ALTER FUNCTION met._get_assessment_item_variable(
  
 CREATE OR REPLACE FUNCTION met.create_assessment_ignoresert
 (
-	assessment_type met.varcharcodeletnum_lc,
+	assessment_type met.varcharcodesimple_lc,
 	assessment_code met.varcharcodeletnum_lc,
 	assessment_version_code met.varcharcodeletnum_lc,
 	name character VARYING,
@@ -278,7 +281,7 @@ $$ LANGUAGE plpgsql;
 --SECURITY DEFINER
 --SET search_path = met, pg_temp;
 ALTER FUNCTION met.create_assessment_ignoresert(
-	assessment_type met.varcharcodeletnum_lc,
+	assessment_type met.varcharcodesimple_lc,
 	assessment_code met.varcharcodeletnum_lc,
 	assessment_version_code met.varcharcodeletnum_lc,
 	name character VARYING,
@@ -287,7 +290,102 @@ ALTER FUNCTION met.create_assessment_ignoresert(
 	documentation CHARACTER varying
 	)
   OWNER TO "phenodb_coworker";
+ 
+CREATE OR REPLACE FUNCTION met.create_assessment_item_ignoresert
+(
+	assessment_code met.varcharcodeletnum_lc,
+	assessment_version_code met.varcharcodeletnum_lc,
+	assessment_type met.varcharcodesimple_lc,
+	assessment_item_type_code met.varcharcodesimple_lc,
+	item_code met.varcharcodeletnum_lc,
+    item_original_descriptor character varying(100),
+    item_name character varying,
+    item_index met.intoneindex,
+    item_text character varying,
+    documentation character varying = ''
+) RETURNS int AS $$
+DECLARE
+    nid int = NULL;
+BEGIN
+	
+	SELECT 1 id INTO nid FROM met.assessment_item
+	WHERE assessment_item.assessment=met.get_assessment($1,$2) AND assessment_item.item_code=$5;
+	
+	IF nid IS NULL
+	THEN
+		INSERT INTO met.assessment_item(assessment,assessment_item_type,item_code,item_original_descriptor,item_name,item_index,item_text,documentation)
+		VALUES(met.get_assessment($1,$2),met.get_assessment_item_type($3,$4),$5,$6,$7,$8,$9,$10) RETURNING id INTO nid;
+	END IF;
+	RETURN nid;
+END;
+$$ LANGUAGE plpgsql;
+--SECURITY DEFINER
+--SET search_path = met, pg_temp;
+ALTER FUNCTION met.create_assessment_item_ignoresert(
+	assessment_code met.varcharcodeletnum_lc,
+	assessment_version_code met.varcharcodeletnum_lc,
+	assessment_type met.varcharcodesimple_lc,
+	assessment_item_type_code met.varcharcodesimple_lc,
+	item_code met.varcharcodeletnum_lc,
+    item_original_descriptor character varying(100),
+    item_name character varying,
+    item_index met.intoneindex,
+    item_text character varying,
+    documentation character varying
+	)
+  OWNER TO "phenodb_coworker";
 
+CREATE OR REPLACE FUNCTION met._create_assessment_item_variable_ignoresert
+(
+	assessment_item integer,
+	variable_code met.varcharcodeletnum_lc,
+    variable_original_descriptor character varying,
+    variable_index met.intoneindex,
+	variable_name character varying=NULL,
+	variable_text character varying=NULL,
+    variable_int_min_limit integer=NULL,
+    variable_int_max_limit integer=NULL,
+    variable_float_min_limit double precision=NULL,
+    variable_float_max_limit double precision=NULL,
+    variable_unit CHARACTER VARYING=NULL,
+    variable_alt_code character varying(100)[]=NULL,
+    variable_alt_text character varying(100)[]=NULL
+) RETURNS int AS $$
+DECLARE
+    nid int = NULL;
+BEGIN
+	
+	SELECT 1 id INTO nid FROM met.assessment_item_variable
+	WHERE assessment_item_variable.assessment_item=$1 AND assessment_item_variable.variable_code=$2;
+	
+	IF nid IS NULL
+	THEN
+		INSERT INTO met.assessment_item_variable(assessment_item,variable_code,variable_original_descriptor,variable_index,variable_name,variable_text,variable_int_min_limit,variable_int_max_limit,variable_float_min_limit,variable_float_max_limit,
+												variable_unit,variable_alt_code,variable_alt_text)
+		VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING id INTO nid;
+	END IF;
+	RETURN nid;
+END;
+$$ LANGUAGE plpgsql;
+--SECURITY DEFINER
+--SET search_path = met, pg_temp;
+ALTER FUNCTION met._create_assessment_item_variable_ignoresert(
+	assessment_item integer,
+	variable_code met.varcharcodeletnum_lc,
+    variable_original_descriptor character varying,
+    variable_index met.intoneindex,
+	variable_name character varying,
+	variable_text character varying,
+    variable_int_min_limit integer,
+    variable_int_max_limit integer,
+    variable_float_min_limit double precision,
+    variable_float_max_limit double precision,
+    variable_unit CHARACTER VARYING,
+    variable_alt_code character varying(100)[],
+    variable_alt_text character varying(100)[]
+	)
+  OWNER TO "phenodb_coworker";
+ 
  
 CREATE OR REPLACE FUNCTION met.construct_cohortinstance_table_name
 (
@@ -502,6 +600,41 @@ ALTER FUNCTION met.create_cohortinstance_table(
 
  --SELECT met.create_cohortinstance_table('covidcns','2021','idpukbb','2021');
 
+ CREATE OR REPLACE FUNCTION met.create_cohortinstance_table_column
+(
+	cohort_code met.varcharcodeletnum_lc,
+	instance_code met.varcharcodeletnum_lc,
+	assessment_code met.varcharcodeletnum_lc,
+	assessment_version_code met.varcharcodeletnum_lc,
+	item_code met.varcharcodeletnum_lc,
+	variable_code met.varcharcodeletnum_lc,
+	pgsql_datatype_string met.varcharcodeletnum_lc
+) RETURNS int AS $$
+DECLARE
+    tindex int = NULL;
+BEGIN
+	
+	--PERFORM met.verify_cohortinstance_assessment(cohort_code,instance_code,assessment_code,assessment_version_code);
+    tindex:=met.get_cohortinstance_table_index(cohort_code,instance_code,assessment_code,assessment_version_code);
+	PERFORM met.create_cohortinstance_table(cohort_code,instance_code,assessment_code,assessment_version_code,tindex);
+	--TODO add verify assessment item and variable
+	execute 'ALTER TABLE coh.' || met.construct_cohortinstance_table_name(cohort_code,instance_code,assessment_code,assessment_version_code,tindex) || ' ADD COLUMN IF NOT EXISTS ' || met.construct_cohortinstance_column_name(item_code,variable_code) || ' ' || pgsql_datatype_string || ';';
+
+	RETURN tindex;
+END;
+$$ LANGUAGE plpgsql;
+--SECURITY DEFINER
+--SET search_path = met, pg_temp;
+ALTER FUNCTION met.create_cohortinstance_table_column(
+	cohort_code met.varcharcodeletnum_lc,
+	instance_code met.varcharcodeletnum_lc,
+	assessment_code met.varcharcodeletnum_lc,
+	assessment_version_code met.varcharcodeletnum_lc,
+	item_code met.varcharcodeletnum_lc,
+	variable_code met.varcharcodeletnum_lc,
+	pgsql_datatype_string met.varcharcodeletnum_lc
+	)
+  OWNER TO "phenodb_coworker";
 
  
 /*
@@ -557,7 +690,7 @@ ALTER FUNCTION met.select_cohort_inventory(
  */
 --SELECT * FROM met.select_cohort_inventory('covidcns','2021','idpukbb','2021');
  
-CREATE OR REPLACE FUNCTION met.get_cohortintance_table_index
+CREATE OR REPLACE FUNCTION met.get_cohortinstance_table_index
 (
 	cohort_code met.varcharcodeletnum_lc,
 	instance_code met.varcharcodeletnum_lc,
@@ -584,7 +717,7 @@ END;
 $$ LANGUAGE plpgsql;
 --SECURITY DEFINER
 --SET search_path = met, pg_temp;
-ALTER FUNCTION met.get_cohortintance_table_index(
+ALTER FUNCTION met.get_cohortinstance_table_index(
 	cohort_code met.varcharcodeletnum_lc,
 	instance_code met.varcharcodeletnum_lc,
 	assessment_code met.varcharcodeletnum_lc,
@@ -592,7 +725,7 @@ ALTER FUNCTION met.get_cohortintance_table_index(
 	)
   OWNER TO "phenodb_coworker";
   
---SELECT met.get_cohortintance_table_index('covidcns','2021','idpukbb','2021');
+--SELECT met.get_cohortinstance_table_index('covidcns','2021','idpukbb','2021');
 
 CREATE OR REPLACE FUNCTION met._get_cohortinstance_table_index
 (
