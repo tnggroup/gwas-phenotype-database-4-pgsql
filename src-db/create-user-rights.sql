@@ -192,6 +192,12 @@ GRANT SELECT, USAGE ON ALL SEQUENCES IN SCHEMA coh TO "phenodb_reader";
 
 --REVOKE ALL ON ALL FUNCTIONS IN SCHEMA coh FROM "phenodb_reader";
 
+--for sumstats_old
+/*
+GRANT ALL ON SCHEMA sumstat_old TO "phenodb_coworker"; -- WITH GRANT OPTION;
 
-
+ALTER DEFAULT PRIVILEGES IN SCHEMA sumstat_old
+GRANT SELECT ON TABLES TO "phenodb_coworker";
+GRANT SELECT ON ALL TABLES IN SCHEMA sumstat_old TO "phenodb_coworker";
+*/
 COMMIT;
