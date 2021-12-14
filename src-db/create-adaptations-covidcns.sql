@@ -73,10 +73,10 @@ select met._create_assessment_item_variable_ignoresert(
 	variable_unit => 'kg'
 );
 
-SELECT met.create_cohortinstance_table('covidcns','2021','atest','1');
-SELECT met.create_cohortinstance_table_column('covidcns','2021','atest','1','item1','var1','integer');
-SELECT met.create_cohortinstance_table_column('covidcns','2021','atest','1','item1','var2','text');
-SELECT met.create_cohortinstance_table_column('covidcns','2021','atest','1','item2','var1','double precision');
+SELECT coh.create_cohortinstance_table('covidcns','2021','atest','1');
+SELECT coh.create_cohortinstance_table_column('covidcns','2021','atest','1','item1','var1','integer');
+SELECT coh.create_cohortinstance_table_column('covidcns','2021','atest','1','item1','var2','text');
+SELECT coh.create_cohortinstance_table_column('covidcns','2021','atest','1','item2','var1','double precision');
 
 
 
@@ -99,33 +99,5 @@ SELECT met.create_assessment_ignoresert(
 	reference_id => met.get_reference_by_doi('10.1136/bmj.m3871'),
 	documentation => ''
 	);
-
-SELECT met.create_assessment_item_ignoresert(
-	assessment_code => 'covidcnsdem',
-	assessment_version_code => '1',
-	assessment_type => 'questionnaire',
-	assessment_item_type_code => 'single',
-	item_code => 'test',
-    item_original_descriptor => 'test',
-    item_name => 'Test',
-    item_index => 1,
-    item_text => 'Please answer the following.',
-    documentation => 'A non-existing test-item.'
-);
-
-
-select met._create_assessment_item_variable_ignoresert(
-	assessment_item => met.get_assessment_item('covidcnsdem','1','test'),
-	variable_code => 'var1',
-    variable_original_descriptor => 'var1',
-    variable_index => 1,
-	variable_name => 'Name',
-	variable_text => 'What is your name?'
-);
-
-SELECT met.create_cohortinstance_table('covidcns','2021','idpukbb','2021');
-SELECT met.create_cohortinstance_table('covidcns','2021','covidcnsdem','1');
-
-SELECT met.create_cohortinstance_table_column('covidcns','2021','covidcnsdem','1','test','var1','character varying');
 
 
