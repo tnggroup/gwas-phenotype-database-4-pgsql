@@ -291,6 +291,49 @@ ALTER FUNCTION met.create_assessment_ignoresert(
 	)
   OWNER TO "phenodb_coworker";
  
+CREATE OR REPLACE FUNCTION met._create_assessment_item_ignoresert
+(
+	assessment integer,
+	assessment_type met.varcharcodesimple_lc,
+	assessment_item_type_code met.varcharcodesimple_lc,
+	item_code met.varcharcodeletnum_lc,
+    item_original_descriptor character varying(100),
+    item_name character varying,
+    item_index met.intoneindex,
+    item_text character varying,
+    documentation character varying = ''
+) RETURNS int AS $$
+DECLARE
+    nid int = NULL;
+BEGIN
+	
+	SELECT 1 id INTO nid FROM met.assessment_item
+	WHERE assessment_item.assessment=$1 AND assessment_item.item_code=$4;
+	
+	IF nid IS NULL
+	THEN
+		INSERT INTO met.assessment_item(assessment,assessment_item_type,item_code,item_original_descriptor,item_name,item_index,item_text,documentation)
+		VALUES($1,met.get_assessment_item_type($2,$3),$4,$5,$6,$7,$8,$9) RETURNING id INTO nid;
+	END IF;
+	RETURN nid;
+END;
+$$ LANGUAGE plpgsql;
+--SECURITY DEFINER
+--SET search_path = met, pg_temp;
+ALTER FUNCTION met._create_assessment_item_ignoresert(
+	assessment integer,
+	assessment_type met.varcharcodesimple_lc,
+	assessment_item_type_code met.varcharcodesimple_lc,
+	item_code met.varcharcodeletnum_lc,
+    item_original_descriptor character varying(100),
+    item_name character varying,
+    item_index met.intoneindex,
+    item_text character varying,
+    documentation character varying
+	)
+  OWNER TO "phenodb_coworker";
+ 
+ 
 CREATE OR REPLACE FUNCTION met.create_assessment_item_ignoresert
 (
 	assessment_code met.varcharcodeletnum_lc,
@@ -524,33 +567,44 @@ CREATE OR REPLACE FUNCTION met.verify_cohortinstance_assessment
 	cohort_code met.varcharcodeletnum_lc,
 	instance_code met.varcharcodeletnum_lc,
 	assessment_code met.varcharcodeletnum_lc,
-	assessment_version_code met.varcharcodeletnum_lc =''
-) RETURNS BOOLEAN AS $$
+	assessment_version_code met.varcharcodeletnum_lc ='',
+	stage_code met.varcharcodeletnum_lc default NULL
+) RETURNS int[] AS $$
 DECLARE
     nid int = NULL;
+	ids int[];
 BEGIN
-	nid:=met.get_cohort(cohort_code);
-	IF nid IS NULL
+	ids[1]:=met.get_cohort(cohort_code);
+	IF ids[1] IS NULL
 	THEN
 		RAISE EXCEPTION 'Nonexistent cohort [%]', cohort_code
       		USING HINT = 'Check that the cohort has been created with the code you are using.';
 	END IF;
 
-	nid:=met.get_cohortinstance(cohort_code, instance_code);
-	IF nid IS NULL
+	ids[2]:=met.get_cohortinstance(cohort_code, instance_code);
+	IF ids[2] IS NULL
 	THEN
 		RAISE EXCEPTION 'Nonexistent cohortinstance [%]', cohort_code
       		USING HINT = 'Check that the cohortinstance has been created with the code you are using, for the referenced cohort.';
 	END IF;
 
-	nid:=met.get_assessment(assessment_code,assessment_version_code);
-	IF nid IS NULL
+	ids[3]:=met.get_assessment(assessment_code,assessment_version_code);
+	IF ids[3] IS NULL
 	THEN
-		RAISE EXCEPTION 'Nonexistent assessment [%]', assessment_code || assessment_version_code
-      		USING HINT = 'Check that the assessment has been created with the code you are using, for the referenced cohort.';
+		RAISE EXCEPTION 'Nonexistent assessment [%]', assessment_code || '_' || assessment_version_code
+      		USING HINT = 'Check that the assessment has been created with the code you are using.';
 	END IF;
 
-	return true;
+	if stage_code is not null
+	THEN
+		ids[4]:=met.get_cohortstage(cohort_code,stage_code);
+		IF ids[4] IS NULL
+		THEN
+			RAISE EXCEPTION 'Nonexistent cohortstage[%]', stage_code
+	      		USING HINT = 'Check that the cohortstage has been created with the code you are using, for the referenced cohort.';
+		END IF;
+	end if;
+	return ids;
 END;
 $$ LANGUAGE plpgsql;
 --SECURITY DEFINER
@@ -559,7 +613,8 @@ ALTER FUNCTION met.verify_cohortinstance_assessment(
 	cohort_code met.varcharcodeletnum_lc,
 	instance_code met.varcharcodeletnum_lc,
 	assessment_code met.varcharcodeletnum_lc,
-	assessment_version_code met.varcharcodeletnum_lc
+	assessment_version_code met.varcharcodeletnum_lc,
+	stage_code met.varcharcodeletnum_lc
 	)
   OWNER TO "phenodb_coworker";
  
@@ -832,158 +887,317 @@ ALTER FUNCTION met._check_cohortinstance_assessment_item_variable_from_column_na
   
  --SELECT met._check_cohortinstance_assessment_item_variable_from_column_name(1,1,"item1_variable1")
  
- 
---HERE!!!!
-/*
-CREATE TEMP TABLE ttest(item1_var1 int, item1_var2 text, item2_var1 double precision);
-GRANT ALL ON TABLE ttest TO "phenodb_coworker";
-INSERT INTO ttest(item1_var1, item1_var2, item2_var1) VALUES(2,'Tom','34.7');
-INSERT INTO ttest(item1_var1, item1_var2, item2_var1) VALUES(24,'Christina','31.8');
-INSERT INTO ttest(item1_var1, item1_var2, item2_var1) VALUES(76,'Adam','71.1');
-
-SELECT * FROM ttest;
 
 
-
---CREATE TEMP TABLE t_import_statistics(column_name text, inventory_status boolean);
---GRANT ALL ON TABLE t_import_statistics TO "phenodb_coworker";
-*/
-
---SELECT tables.* FROM information_schema.tables
---SELECT columns.* FROM information_schema.columns WHERE table_catalog='phenodb' AND table_name='ttest'
-
---SELECT current_user;
-
-CREATE OR REPLACE FUNCTION coh.prepare_for_import
+CREATE OR REPLACE FUNCTION coh.prepare_import
 (
-	table_name met.varcharcodesimple
+	cohort_code met.varcharcodeletnum_lc,
+	instance_code met.varcharcodeletnum_lc,
+	assessment_code met.varcharcodeletnum_lc,
+	assessment_version_code met.varcharcodeletnum_lc,
+	table_name met.varcharcodesimple,
+	cohort_id_column_name met.varcharcodesimple[] DEFAULT '{}',
+	annotation_table_name met.varcharcodesimple DEFAULT NULL
 ) RETURNS int AS $$
 DECLARE
+	ids int[];
+	var_cohortinstance_id int;
+	var_assessment_id int;
 	string_query text;
     toreturn int;
 BEGIN
 
+	ids:=met.verify_cohortinstance_assessment(cohort_code,instance_code,assessment_code,assessment_version_code);
+	var_cohortinstance_id:=ids[2];
+	var_assessment_id:=ids[3];
+	
+	RAISE NOTICE 'var_cohortinstance_id %',var_cohortinstance_id;
+	RAISE NOTICE 'var_assessment_id %',var_cohortinstance_id;
+	
+	
 	--set permission to right user group
 	string_query:= 'GRANT ALL ON TABLE ' || table_name || ' TO "phenodb_coworker" ';
 	EXECUTE string_query;
 	
-	--add user 
+	IF annotation_table_name IS NOT NULL
+	THEN
+		string_query:= 'GRANT ALL ON TABLE ' || annotation_table_name || ' TO "phenodb_coworker" ';
+		EXECUTE string_query;
+	END IF;
+	
+	
+	--TODO - FIX SCHEMA CATRGORISATION OF THE TABLE HERE
+	DROP TABLE IF EXISTS t_import_data_meta;
+	--DELETE FROM t_import_data_meta;
+	CREATE TEMP TABLE IF NOT EXISTS t_import_data_meta AS
+	--INSERT INTO t_import_data_meta
+	WITH imp AS (SELECT
+					met.parse_assessment_item_code_from_column_name("column_name") assessment_item_code,
+					met.parse_assessment_item_variable_code_from_column_name("column_name") assessment_item_variable_code,
+					CASE WHEN columns.column_name = ANY(cohort_id_column_name) THEN TRUE ELSE FALSE END cohort_id,
+					columns.* FROM information_schema.columns WHERE columns.table_catalog='phenodb' AND columns.table_name=$5)
+	SELECT imp.*,
+	(imp.cohort_id OR imp.cohort_id) meta,
+	inv.table_name n_table_name, inv.column_name n_column_name
+	FROM imp LEFT OUTER JOIN met.cohort_inventory inv 
+	ON inv.cohortinstance_id=var_cohortinstance_id AND inv.assessment_id=var_assessment_id AND imp.assessment_item_code=inv.assessment_item_code AND imp.assessment_item_variable_code = inv.assessment_item_variable_code;
+	GRANT ALL ON TABLE t_import_data_meta TO "phenodb_coworker";
+	ANALYZE t_import_data_meta;
+	
+	SELECT COUNT(t_import_data_meta.*) INTO toreturn FROM t_import_data_meta;
+	RAISE NOTICE 'nrows %',toreturn;
+	
+	DROP TABLE IF EXISTS t_import_data_assessment_item_stats;
+	CREATE TEMP TABLE IF NOT EXISTS t_import_data_assessment_item_stats AS
+	SELECT
+	m.assessment_item_code,
+	COUNT(m.assessment_item_variable_code) count_var,
+	COUNT(CASE WHEN m.n_column_name IS NOT NULL THEN assessment_item_variable_code END) count_annotated_var,
+	COUNT(CASE WHEN m.data_type IN ('integer','smallint','serial','smallserial') THEN assessment_item_variable_code END) count_datatype_integer,
+	COUNT(CASE WHEN m.data_type IN ('double precision','real') THEN assessment_item_variable_code END) count_datatype_float,
+	COUNT(CASE WHEN m.data_type IN ('text','character varying','character') THEN assessment_item_variable_code END) count_datatype_text,
+	COUNT(CASE WHEN m.data_type IN ('boolean') THEN assessment_item_variable_code END) count_datatype_boolean,
+	COUNT(CASE WHEN m.data_type IN ('timestamp','time') THEN assessment_item_variable_code END) count_datatype_time
+	FROM t_import_data_meta m
+	WHERE m.meta = FALSE
+	GROUP BY m.assessment_item_code
+	ORDER BY assessment_item_code;
+	GRANT ALL ON TABLE t_import_data_assessment_item_stats TO "phenodb_coworker";
+	
+	DROP TABLE IF EXISTS t_import_data_assessment_item_variable_stats;
+	CREATE TEMP TABLE IF NOT EXISTS t_import_data_assessment_item_variable_stats AS
+	SELECT
+	m.assessment_item_code,
+	m.assessment_item_variable_code,
+	m.column_name,
+	m.data_type,
+	(m.n_column_name IS NOT NULL) annotated
+	FROM t_import_data_meta m
+	WHERE m.meta = FALSE
+	ORDER BY assessment_item_code, assessment_item_variable_code;
+	GRANT ALL ON TABLE t_import_data_assessment_item_variable_stats TO "phenodb_coworker";
+	
+	SELECT COUNT(t_import_data_assessment_item_variable_stats.*) INTO toreturn FROM t_import_data_assessment_item_variable_stats;
+	RAISE NOTICE 'nrows t_import_data_assessment_item_variable_stats=%',toreturn;
 	
 	RETURN 1;
 END;
 $$ LANGUAGE plpgsql;
-ALTER FUNCTION coh.prepare_for_import(
-	table_name met.varcharcodesimple
+ALTER FUNCTION coh.prepare_import(
+	cohort_code met.varcharcodeletnum_lc,
+	instance_code met.varcharcodeletnum_lc,
+	assessment_code met.varcharcodeletnum_lc,
+	assessment_version_code met.varcharcodeletnum_lc,
+	table_name met.varcharcodesimple,
+	cohort_id_column_name met.varcharcodesimple[],
+	annotation_table_name met.varcharcodesimple
 	)
   OWNER TO "phenodb_coworker";
-  
+ 
 
-CREATE OR REPLACE FUNCTION coh._import_data
+ --HERE!!!!
+ --Exception when running the new annotation code
+/*
+
+DROP TABLE IF EXISTS ttest;
+CREATE TEMP TABLE 
+ttest(
+	spid text, 
+	item1_var1 int,
+	item1_var2 text,
+	item2_var1 double precision,
+	item3_var1 int,
+	item3_var2 character varying);
+GRANT ALL ON TABLE ttest TO "phenodb_coworker";
+INSERT INTO ttest(spid,item1_var1, item1_var2, item2_var1, item3_var1) VALUES('SPID1',2,NULL,'34.7',1);
+INSERT INTO ttest(spid,item1_var1, item1_var2, item2_var1, item3_var1) VALUES('SPID2',1,'I did not want to do this.','31.8',1);
+INSERT INTO ttest(spid,item1_var1, item1_var2, item2_var1, item3_var1) VALUES('SPID3',1,NULL,'71.1',1);
+INSERT INTO ttest(spid,item1_var1, item1_var2, item2_var1, item3_var1, item3_var2) VALUES('SPID4',3,NULL,'71.1',2,'No comment.');
+
+SELECT * FROM ttest;
+
+*/
+
+
+
+
+
+CREATE OR REPLACE FUNCTION coh.import_data
 (
-	cohortinstance_id int,
-	assessment_id int,
-	cohortstage_id int,
-	table_name met.varcharcodesimple
+	cohort_code met.varcharcodeletnum_lc,
+	instance_code met.varcharcodeletnum_lc,
+	assessment_code met.varcharcodeletnum_lc,
+	assessment_version_code met.varcharcodeletnum_lc,
+	stage_code met.varcharcodeletnum_lc,
+	table_name met.varcharcodesimple,
+	do_annotate boolean DEFAULT FALSE,
+	do_insert boolean DEFAULT FALSE,
+	annotation_table_name met.varcharcodesimple DEFAULT NULL
 ) RETURNS int AS $$
 DECLARE
+	ids int[];
+	var_cohortinstance_id int;
+	var_assessment_id int;
+	var_cohortstage_id int;
     toreturn int;
+	string_assessment_main_type text;
 	n_table_names text[];
 	c_n_table_name text;
+	cohort_id_columns text[];
+	c_cohort_id_column text;
 	string_target_column_names text;
 	string_source_column_names text;
 	string_query text;
-	r_t_import_data_meta RECORD;
+	r RECORD;
 BEGIN
 
-	string_query:= 'GRANT ALL ON TABLE ' || table_name || ' TO "phenodb_coworker" ';
-	EXECUTE string_query;
-
-	--TODO - FIX SCHEMA CATRGORISATION OF THE TABLE HERE
-	DROP TABLE IF EXISTS _t_import_data_meta;
-	--DELETE FROM _t_import_data_meta;
-	CREATE TEMP TABLE IF NOT EXISTS _t_import_data_meta AS
-	--INSERT INTO _t_import_data_meta
-	WITH imp AS (SELECT
-					met.parse_assessment_item_code_from_column_name("column_name") assessment_item_code,
-					met.parse_assessment_item_variable_code_from_column_name("column_name") assessment_item_variable_code,
-					columns.* FROM information_schema.columns WHERE columns.table_catalog='phenodb' AND columns.table_name=$4)
-	SELECT imp.*, inv.table_name n_table_name, inv.column_name n_column_name
-	FROM imp LEFT OUTER JOIN met.cohort_inventory inv 
-	ON inv.cohortinstance_id=$1 AND inv.assessment_id=$2 AND imp.assessment_item_code=inv.assessment_item_code AND imp.assessment_item_variable_code = inv.assessment_item_variable_code;
-	GRANT ALL ON TABLE _t_import_data_meta TO "phenodb_coworker";
-	ANALYZE _t_import_data_meta;
+	ids:=met.verify_cohortinstance_assessment(cohort_code,instance_code,assessment_code,assessment_version_code,stage_code);
+	var_cohortinstance_id:=ids[2];
+	var_assessment_id:=ids[3];
+	var_cohortstage_id:=ids[4];
 	
-	--SELECT $1 INTO toreturn;
-	--RAISE NOTICE 'cohortinstance_id %',toreturn;
+	--SELECT assessment.assessment_type INTO string_assessment_main_type FROM met.assessment WHERE addessment.id=var_assessment_id;
 	
-	SELECT COUNT(_t_import_data_meta.*) INTO toreturn FROM _t_import_data_meta;
-	RAISE NOTICE 'nrows %',toreturn;
-
-	DROP TABLE IF EXISTS t_import_statistics;
-	CREATE TEMP TABLE IF NOT EXISTS t_import_statistics(column_name text, inventory_status boolean);
-	GRANT ALL ON TABLE t_import_statistics TO "phenodb_coworker";
-	--DELETE FROM t_import_statistics;
-	INSERT INTO t_import_statistics(column_name, inventory_status) SELECT _t_import_data_meta.column_name, (_t_import_data_meta.n_column_name IS NOT NULL) FROM _t_import_data_meta;
+	RAISE NOTICE 'var_cohortinstance_id %',var_cohortinstance_id;
+	RAISE NOTICE 'var_assessment_id %',var_cohortinstance_id;
+	RAISE NOTICE 'var_cohortstage_id %',var_cohortstage_id;
 	
-	SELECT COUNT(t_import_statistics.*) INTO toreturn FROM t_import_statistics;
-	RAISE NOTICE 'nrows %',toreturn;
-	
-	IF EXISTS (SELECT 1 inventory_status FROM t_import_statistics WHERE inventory_status=FALSE)
+	IF do_annotate = FALSE AND EXISTS (SELECT 1 n_column_name FROM t_import_data_meta WHERE t_import_data_meta.n_column_name IS NULL AND t_import_data_meta.meta IS FALSE)
 	THEN
 		RAISE NOTICE 'Unknown columns present in the imported data.'
       		USING HINT = 'Please add and annotate all assessment item variables that are to be imported into the database.';
 		RETURN -1;
 	END IF;
-
-	SELECT ARRAY(SELECT DISTINCT n_table_name FROM _t_import_data_meta) INTO n_table_names;
 	
-	RAISE NOTICE 'array %',array_length(n_table_names,1);
 	
-	FOREACH c_n_table_name IN ARRAY n_table_names LOOP
-		RAISE NOTICE 'n_table_name %',c_n_table_name;
-		
-		string_target_column_names:='_stage,_user,_time_assessment,_individual_identifier';
-		string_source_column_names:= E'\'' || cohortstage_id || E'\'';
-		string_source_column_names:=string_source_column_names || ','  || E'\'' || session_user || E'\'';
-		string_source_column_names:=string_source_column_names || ','  || E'\'' || now() || E'\''; 
-		string_source_column_names:=string_source_column_names || ','  || E'\'' || gen_random_uuid() || E'\'';
-		
-		FOR r_t_import_data_meta IN SELECT * FROM _t_import_data_meta WHERE _t_import_data_meta.n_table_name=c_n_table_name AND _t_import_data_meta.n_column_name IS NOT NULL
+	IF do_annotate
+	THEN
+		--fallback annotation
+		CREATE TEMP TABLE IF NOT EXISTS t_import_data_assessment_item_annotation AS --ON COMMIT DROP
+		SELECT istats.assessment_item_code,
+		--string_assessment_main_type assessment_type,
+		'questionnaire' assessment_type,
+		CASE
+			WHEN istats.count_var <2 OR (istats.count_var<3 AND istats.count_datatype_integer=1) THEN 'single'
+			WHEN istats.count_var >1 THEN 'multi'
+			ELSE 'single'
+		END assessment_item_type_code,
+		ROW_NUMBER() OVER(ORDER BY istats.assessment_item_code) item_index,
+		'' item_text,
+		'fallback' item_documentation
+		FROM t_import_data_assessment_item_stats istats;
+		GRANT ALL ON TABLE t_import_data_assessment_item_annotation TO "phenodb_coworker";
+	
+		--add items
+		FOR r IN 
+		SELECT * FROM 
+		t_import_data_assessment_item_stats istats 
+		INNER JOIN t_import_data_assessment_item_annotation a 
+		ON istats.assessment_item_code=a.assessment_item_code WHERE istats.count_annotated_var < istats.count_var
 		LOOP
-			string_target_column_names:=string_target_column_names || ',' || r_t_import_data_meta.n_column_name;
-			string_source_column_names:=string_source_column_names || ',' || r_t_import_data_meta.column_name;
+			RAISE NOTICE 'r.assessment_type %',r.assessment_type;
+			PERFORM met._create_assessment_item_ignoresert(
+				assessment => var_assessment_id,
+				assessment_type => r.assessment_type,
+				assessment_item_type_code => r.assessment_item_type_code,
+				item_code => r.assessment_item_code,
+				item_original_descriptor => r.assessment_item_code,
+				item_name => r.assessment_item_code,
+				item_index => CAST(r.item_index AS int),
+				item_text => r.item_text,
+				documentation => r.item_documentation
+			);
 		END LOOP;
 		
-		
-		string_query := 'INSERT INTO coh.' || c_n_table_name || '(' || string_target_column_names || ')' || 'SELECT ' || string_source_column_names || ' FROM ' || table_name ;
-		--RAISE NOTICE 'Q: %',string_query;
-		EXECUTE string_query;
-	END LOOP;
-	
-	DROP TABLE IF EXISTS _t_import_data_meta;
+		--add item variables and cohort table columns
+		FOR r IN 
+		SELECT * FROM 
+		t_import_data_assessment_item_variable_stats vstats 
+		--INNER JOIN t_import_data_assessment_item_variable_annotation a --no possible to annotate variables yet
+		--ON istats.assessment_item_code=a.assessment_item_code 
+		WHERE vstats.annotated = FALSE
+		LOOP
+			PERFORM met._create_assessment_item_variable_ignoresert
+			(
+				assessment_item => CAST(met._get_assessment_item(var_assessment_id,r.assessment_item_code) AS int),
+				variable_code => CAST(r.assessment_item_variable_code AS character varying),
+				variable_original_descriptor => CAST(r.column_name AS character varying),
+				variable_index => CAST(1 AS int),
+				variable_name => CAST(r.assessment_item_variable_code AS int)
+			);
+			PERFORM coh.create_cohortinstance_table_column(cohort_code,instance_code,assessment_code,assessment_version_code,r.assessment_item_code,r.assessment_item_variable_code,r.data_type);
+		END LOOP;
+	END IF;
+
+	IF do_insert
+	THEN
+		SELECT ARRAY(SELECT DISTINCT n_table_name FROM t_import_data_meta WHERE t_import_data_meta.meta =FALSE) INTO n_table_names;
+		SELECT ARRAY(SELECT assessment_item_code FROM t_import_data_meta WHERE t_import_data_meta.cohort_id =TRUE ORDER BY t_import_data_meta.ordinal_position) INTO cohort_id_columns;
+		c_cohort_id_column:=cohort_id_columns[1];
+
+		RAISE NOTICE 'array %',array_length(n_table_names,1);
+		RAISE NOTICE 'c_cohort_id_column %',c_cohort_id_column;
+
+		FOREACH c_n_table_name IN ARRAY n_table_names LOOP
+			RAISE NOTICE 'n_table_name %',c_n_table_name;
+
+			string_target_column_names:='_stage,_user,_time_assessment,_individual_identifier';
+			string_source_column_names:= E'\'' || cohortstage_id || E'\'';
+			string_source_column_names:=string_source_column_names || ','  || E'\'' || session_user || E'\'';
+			string_source_column_names:=string_source_column_names || ','  || E'\'' || now() || E'\''; 
+			string_source_column_names:=string_source_column_names || ','  || E'\'' || gen_random_uuid() || E'\'';
+
+			FOR r IN SELECT * FROM t_import_data_meta WHERE t_import_data_meta.n_table_name=c_n_table_name AND t_import_data_meta.n_column_name IS NOT NULL
+			LOOP
+				string_target_column_names:=string_target_column_names || ',' || r.n_column_name;
+				string_source_column_names:=string_source_column_names || ',' || r.column_name;
+			END LOOP;
+
+
+			string_query := 'INSERT INTO coh.' || c_n_table_name || '(' || string_target_column_names || ')' || 'SELECT ' || string_source_column_names || ' FROM ' || table_name ;
+			--RAISE NOTICE 'Q: %',string_query;
+			EXECUTE string_query;
+		END LOOP;
+	END IF;
 	
 	RETURN 1;
 END;
 $$ LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = coh, pg_temp;
-ALTER FUNCTION coh._import_data(
-	cohortinstance_id int,
-	assessment_id int,
-	cohortstage_id int,
-	table_name met.varcharcodesimple
+ALTER FUNCTION coh.import_data(
+	cohort_code met.varcharcodeletnum_lc,
+	instance_code met.varcharcodeletnum_lc,
+	assessment_code met.varcharcodeletnum_lc,
+	assessment_version_code met.varcharcodeletnum_lc,
+	stage_code met.varcharcodeletnum_lc,
+	table_name met.varcharcodesimple,
+	do_annotate boolean,
+	do_insert boolean,
+	annotation_table_name met.varcharcodesimple
 	)
   OWNER TO "phenodb_owner";
   
   --SELECT * FROM met.get_cohortinstance('covidcns','2021');
   --SELECT * FROM met.get_assessment('atest','1');
   --SELECT * FROM met.get_cohortstage('covidcns','bl');
- --SELECT * FROM coh._import_data(met.get_cohortinstance('covidcns','2021'),met.get_assessment('atest','1'),met.get_cohortstage('covidcns','bl'),'ttest');
- --SELECT * FROM _t_import_data_meta;
- --SELECT * FROM t_import_statistics;
-
+  -- SELECT * FROM coh.prepare_import('covidcns','2021','atest','1','ttest','{"spid"}');
+  /*
+ SELECT * FROM coh.import_data(
+ 	cohort_code => 'covidcns',
+	instance_code => '2021',
+	assessment_code => 'atest',
+	assessment_version_code => '1',
+	stage_code => 'bl',
+	table_name => 'ttest',
+	do_annotate => TRUE,
+	do_insert => TRUE
+ );
+ */
+ --SELECT * FROM t_import_data_meta;
+ --SELECT * FROM t_import_data_assessment_item_stats;
+ --SELECT * FROM t_import_data_assessment_item_variable_stats;
+ -- DROP TABLE t_import_data_assessment_item_annotation
+-- SELECT * FROM t_import_data_assessment_item_annotation;
  
  --DELETE FROM coh.covidcns_2021_atest_1_1;
- 
- 
- 
