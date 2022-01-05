@@ -887,7 +887,6 @@ ALTER FUNCTION met._check_cohortinstance_assessment_item_variable_from_column_na
   
  --SELECT met._check_cohortinstance_assessment_item_variable_from_column_name(1,1,"item1_variable1")
  
-
  
 CREATE OR REPLACE FUNCTION coh.prepare_import
 (
@@ -1040,15 +1039,88 @@ ttest(
 	item3_var1 int,
 	item3_var2 character varying);
 GRANT ALL ON TABLE ttest TO "phenodb_coworker";
-INSERT INTO ttest(spid,item1_var1, item1_var2, item2_var1, item3_var1) VALUES('SPID1',2,NULL,'34.7',1);
-INSERT INTO ttest(spid,item1_var1, item1_var2, item2_var1, item3_var1) VALUES('SPID2',1,'I did not want to do this.','31.8',1);
-INSERT INTO ttest(spid,item1_var1, item1_var2, item2_var1, item3_var1) VALUES('SPID3',1,NULL,'71.1',1);
-INSERT INTO ttest(spid,item1_var1, item1_var2, item2_var1, item3_var1, item3_var2) VALUES('SPID4',3,NULL,'71.1',2,'No comment.');
+INSERT INTO ttest(spid,item1_var1, item1_var2, item2_var1, item3_var1) VALUES('spid1',2,NULL,'34.7',1);
+INSERT INTO ttest(spid,item1_var1, item1_var2, item2_var1, item3_var1) VALUES('spid2',1,'I did not want to do this.','31.8',1);
+INSERT INTO ttest(spid,item1_var1, item1_var2, item2_var1, item3_var1) VALUES('spid3',1,NULL,'71.1',1);
+INSERT INTO ttest(spid,item1_var1, item1_var2, item2_var1, item3_var1, item3_var2) VALUES('spid4',3,NULL,'71.1',2,'No comment.');
 
 SELECT * FROM ttest;
 
 */
 
+CREATE OR REPLACE FUNCTION sec._create_cohortinstance_individual
+(
+	cohortinstance_id int,
+	identifier_cohort met.varcharcodesimple_lc,
+	"name" character varying,
+	name_more character varying,
+	surname character varying,
+	sex met.sex,
+	time_birth TIMESTAMP WITH TIME ZONE,
+	country character(2),
+	email character varying,
+	apartment character varying,
+	house character varying,
+	street character varying,
+	city character varying,
+	province character varying,
+	postal_code character varying,
+	cellphone character varying,
+	phone_other character varying
+) RETURNS uuid AS $$
+DECLARE
+    nid int = NULL;
+	nuuid uuid = NULL;
+BEGIN
+	
+	SELECT 1 id INTO nid FROM sec.individual_cohortinstance_identifier ici
+	WHERE ici.cohortinstance=$1 AND (ici.identifier_cohort=$2 OR ici.identifier::text=$2);
+	
+	IF nid IS NOT NULL
+	THEN
+		RAISE EXCEPTION 'Cohort individual [%] already exists.', $2
+      		USING HINT = 'Not possible to add already existing cohort individual relation.';
+	END IF;
+	
+	--does not match existing individuals outside of the cohort (yet)
+	INSERT INTO sec.individual(name,name_more,surname,sex,time_birth)VALUES($3,$4,$5,$6,$7) RETURNING id INTO nid;
+	INSERT INTO sec.individual_cohortinstance_identifier(individual,cohortinstance,identifier_cohort,country,email,apartment,house,street,city,province,postal_code,cellphone,phone_other)VALUES(nid,$1,$2,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17) RETURNING identifier INTO nuuid;
+	
+	RETURN nuuid;
+END;
+$$ LANGUAGE plpgsql;
+ALTER FUNCTION sec._create_cohortinstance_individual(
+	cohortinstance_id int,
+	identifier_cohort met.varcharcodesimple_lc,
+	"name" character varying,
+	name_more character varying,
+	surname character varying,
+	sex met.sex,
+	time_birth TIMESTAMP WITH TIME ZONE,
+	country character(2),
+	email character varying,
+	apartment character varying,
+	house character varying,
+	street character varying,
+	city character varying,
+	province character varying,
+	postal_code character varying,
+	cellphone character varying,
+	phone_other character varying
+	)
+  OWNER TO "phenodb_coworker";
+
+--why does this not work?
+--SELECT * FROM sec._create_cohortinstance_individual(1::int,'spid1'::met.varcharcodesimple_lc,'Test1'::character varying,NULL,NULL,'male'::met.sex,now());
+/*
+SELECT * FROM sec._create_cohortinstance_individual
+(
+	cohortinstance_id => 1::int,
+	identifier_cohort => 'spid1'::met.varcharcodesimple_lc,
+	name => 'Test1'::text,
+	sex => 'male'::met.sex
+);
+ */
 
 CREATE OR REPLACE FUNCTION coh.import_data
 (
@@ -1059,6 +1131,7 @@ CREATE OR REPLACE FUNCTION coh.import_data
 	stage_code met.varcharcodeletnum_lc,
 	table_name met.varcharcodesimple,
 	do_annotate boolean DEFAULT FALSE,
+	add_individuals boolean DEFAULT FALSE,
 	do_insert boolean DEFAULT FALSE,
 	annotation_table_name met.varcharcodesimple DEFAULT NULL
 ) RETURNS int AS $$
@@ -1084,11 +1157,21 @@ BEGIN
 	var_assessment_id:=ids[3];
 	var_cohortstage_id:=ids[4];
 	
+	
 	--SELECT assessment.assessment_type INTO string_assessment_main_type FROM met.assessment WHERE addessment.id=var_assessment_id;
 	
 	RAISE NOTICE 'var_cohortinstance_id %',var_cohortinstance_id;
 	RAISE NOTICE 'var_assessment_id %',var_assessment_id;
 	RAISE NOTICE 'var_cohortstage_id %',var_cohortstage_id;
+	
+	--data-individual view
+	SELECT ARRAY(SELECT assessment_item_code FROM t_import_data_meta WHERE t_import_data_meta.is_cohort_id =TRUE ORDER BY t_import_data_meta.ordinal_position) INTO cohort_id_columns;
+	c_cohort_id_column:=cohort_id_columns[1];
+	
+	string_query := 'CREATE OR REPLACE TEMP VIEW t_src_individual AS SELECT src.*, src.' || c_cohort_id_column || '_spid, ici.identifier _individual_identifier FROM ' || table_name || ' src ' || ' LEFT OUTER JOIN sec.individual_cohortinstance_identifier ici ON (src.' || c_cohort_id_column || '=ici.identifier_cohort OR src.' || c_cohort_id_column || '=ici.identifier::text) AND ici.cohortinstance=' || var_cohortinstance_id || ' LEFT OUTER JOIN sec.individual i ON ici.individual=i.id';
+	RAISE NOTICE 'Q: %',string_query;
+	EXECUTE string_query;
+	
 	
 	IF do_annotate = FALSE AND EXISTS (SELECT 1 n_column_name FROM t_import_data_meta WHERE t_import_data_meta.n_column_name IS NULL AND t_import_data_meta.meta IS FALSE)
 	THEN
@@ -1161,12 +1244,21 @@ BEGIN
 			PERFORM coh.create_cohortinstance_table_column(cohort_code,instance_code,assessment_code,assessment_version_code,r.assessment_item_code,r.assessment_item_variable_code,r.data_type);
 		END LOOP;
 	END IF;
+	
+	
+	IF add_individuals
+	THEN
+		FOR r IN SELECT src.* FROM t_src_individual src WHERE src._individual_identifier IS NULL
+		LOOP
+			
+		END LOOP;
+	END IF;
+	
 
 	IF do_insert
 	THEN
 		SELECT ARRAY(SELECT DISTINCT n_table_name FROM t_import_data_meta WHERE t_import_data_meta.meta =FALSE) INTO n_table_names;
-		SELECT ARRAY(SELECT assessment_item_code FROM t_import_data_meta WHERE t_import_data_meta.is_cohort_id =TRUE ORDER BY t_import_data_meta.ordinal_position) INTO cohort_id_columns;
-		c_cohort_id_column:=cohort_id_columns[1];
+		
 
 		RAISE NOTICE 'array %',array_length(n_table_names,1);
 		RAISE NOTICE 'c_cohort_id_column %',c_cohort_id_column;
@@ -1178,7 +1270,7 @@ BEGIN
 			string_source_column_names:= E'\'' || var_cohortstage_id || E'\'';
 			string_source_column_names:=string_source_column_names || ','  || E'\'' || session_user || E'\'';
 			string_source_column_names:=string_source_column_names || ','  || E'\'' || now() || E'\''; 
-			string_source_column_names:=string_source_column_names || ','  || E'\'' || gen_random_uuid() || E'\'';
+			string_source_column_names:=string_source_column_names || ',src._individual_identifier';
 
 			FOR r IN SELECT * FROM t_import_data_meta WHERE t_import_data_meta.n_table_name=c_n_table_name AND t_import_data_meta.n_column_name IS NOT NULL
 			LOOP
@@ -1187,7 +1279,7 @@ BEGIN
 			END LOOP;
 
 
-			string_query := 'INSERT INTO coh.' || c_n_table_name || '(' || string_target_column_names || ')' || ' SELECT ' || string_source_column_names || ' FROM ' || table_name ;
+			string_query := 'INSERT INTO coh.' || c_n_table_name || '(' || string_target_column_names || ')' || ' SELECT ' || string_source_column_names || ' FROM t_src_individual src WHERE src._individual_identifier IS NOT NULL';
 			RAISE NOTICE 'Q: %',string_query;
 			EXECUTE string_query;
 		END LOOP;
@@ -1206,6 +1298,7 @@ ALTER FUNCTION coh.import_data(
 	stage_code met.varcharcodeletnum_lc,
 	table_name met.varcharcodesimple,
 	do_annotate boolean,
+	add_individuals boolean,
 	do_insert boolean,
 	annotation_table_name met.varcharcodesimple
 	)
@@ -1224,6 +1317,7 @@ ALTER FUNCTION coh.import_data(
 	stage_code => 'bl',
 	table_name => 'ttest',
 	do_annotate => TRUE,
+	add_individuals => TRUE,
 	do_insert => TRUE
  );
  */
@@ -1232,5 +1326,6 @@ ALTER FUNCTION coh.import_data(
  --SELECT * FROM t_import_data_assessment_item_variable_stats;
  -- DROP TABLE t_import_data_assessment_item_annotation
 -- SELECT * FROM t_import_data_assessment_item_annotation;
+--SELECT * FROM t_src_individual;
  
  --DELETE FROM coh.covidcns_2021_atest_1_1;
