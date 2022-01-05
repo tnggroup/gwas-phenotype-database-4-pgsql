@@ -888,7 +888,7 @@ ALTER FUNCTION met._check_cohortinstance_assessment_item_variable_from_column_na
  --SELECT met._check_cohortinstance_assessment_item_variable_from_column_name(1,1,"item1_variable1")
  
 
-
+ 
 CREATE OR REPLACE FUNCTION coh.prepare_import
 (
 	cohort_code met.varcharcodeletnum_lc,
@@ -914,6 +914,23 @@ BEGIN
 	RAISE NOTICE 'var_cohortinstance_id %',var_cohortinstance_id;
 	RAISE NOTICE 'var_assessment_id %',var_cohortinstance_id;
 	
+	DROP TABLE IF EXISTS t_import_data_cohort_settings CASCADE;
+	CREATE TEMP TABLE IF NOT EXISTS t_import_data_cohort_settings AS
+	SELECT
+		var_cohortinstance_id cohortinstance_id,
+		var_assessment_id assessment_id
+	;
+	GRANT ALL ON TABLE t_import_data_cohort_settings TO "phenodb_coworker";
+	
+	DROP TABLE IF EXISTS t_import_data_cohort_table_name CASCADE;
+	CREATE TEMP TABLE IF NOT EXISTS t_import_data_cohort_table_name AS
+	SELECT $5 table_name;
+	GRANT ALL ON TABLE t_import_data_cohort_table_name TO "phenodb_coworker";
+	
+	DROP TABLE IF EXISTS t_import_data_cohort_id_column_names CASCADE;
+	CREATE TEMP TABLE IF NOT EXISTS t_import_data_cohort_id_column_names AS
+	SELECT UNNEST(cohort_id_column_name) id_column_name;
+	GRANT ALL ON TABLE t_import_data_cohort_id_column_names TO "phenodb_coworker";
 	
 	--set permission to right user group
 	string_query:= 'GRANT ALL ON TABLE ' || table_name || ' TO "phenodb_coworker" ';
@@ -925,30 +942,43 @@ BEGIN
 		EXECUTE string_query;
 	END IF;
 	
-	
-	--TODO - FIX SCHEMA CATRGORISATION OF THE TABLE HERE
-	DROP TABLE IF EXISTS t_import_data_meta;
-	--DELETE FROM t_import_data_meta;
-	CREATE TEMP TABLE IF NOT EXISTS t_import_data_meta AS
-	--INSERT INTO t_import_data_meta
+	--TODO - ADD CUSTOM SCHEMA CHOICE 
+	CREATE OR REPLACE TEMP VIEW t_import_data_meta AS
 	WITH imp AS (SELECT
 					met.parse_assessment_item_code_from_column_name("column_name") assessment_item_code,
 					met.parse_assessment_item_variable_code_from_column_name("column_name") assessment_item_variable_code,
-					CASE WHEN columns.column_name = ANY(cohort_id_column_name) THEN TRUE ELSE FALSE END cohort_id,
-					columns.* FROM information_schema.columns WHERE columns.table_catalog='phenodb' AND columns.table_name=$5)
-	SELECT imp.*,
-	(imp.cohort_id OR imp.cohort_id) meta,
-	inv.table_name n_table_name, inv.column_name n_column_name
-	FROM imp LEFT OUTER JOIN met.cohort_inventory inv 
-	ON inv.cohortinstance_id=var_cohortinstance_id AND inv.assessment_id=var_assessment_id AND imp.assessment_item_code=inv.assessment_item_code AND imp.assessment_item_variable_code = inv.assessment_item_variable_code;
-	GRANT ALL ON TABLE t_import_data_meta TO "phenodb_coworker";
-	ANALYZE t_import_data_meta;
+					--CASE WHEN columns.column_name = ANY(cohort_id_column_name) THEN TRUE ELSE FALSE END cohort_id,
+				 	COUNT(icn.id_column_name) > 0 is_cohort_id,
+				 	columns.table_catalog,
+				 	columns.table_schema,
+					columns.table_name,
+				 	tables.table_type,
+				 	columns.column_name
+				 FROM information_schema.columns
+				 INNER JOIN information_schema.tables ON columns.table_catalog=tables.table_catalog AND columns.table_schema=tables.table_schema AND columns.table_name=tables.table_name
+				 INNER JOIN t_import_data_cohort_table_name tn ON columns.table_name=tn.table_name
+				 LEFT OUTER JOIN t_import_data_cohort_id_column_names icn ON columns.column_name = icn.id_column_name
+				WHERE columns.table_catalog='phenodb' AND tables.table_type='LOCAL TEMPORARY'
+				GROUP BY assessment_item_code,assessment_item_variable_code,columns.table_catalog,columns.table_schema,columns.table_name,tables.table_type,columns.column_name
+				)
+	SELECT
+	imp.assessment_item_code,
+	imp.assessment_item_variable_code,
+	imp.is_cohort_id,
+	(imp.is_cohort_id OR imp.is_cohort_id) meta, --it should look like this for now - add more conditions when needed
+	inv.table_name n_table_name, inv.column_name n_column_name,
+	columns.*
+	FROM 
+	imp
+	LEFT OUTER JOIN t_import_data_cohort_settings s ON TRUE
+	LEFT OUTER JOIN met.cohort_inventory inv ON inv.cohortinstance_id=s.cohortinstance_id AND inv.assessment_id=s.assessment_id AND imp.assessment_item_code=inv.assessment_item_code AND imp.assessment_item_variable_code = inv.assessment_item_variable_code
+	LEFT OUTER JOIN information_schema.columns ON imp.table_catalog=columns.table_catalog AND imp.table_schema=columns.table_schema AND imp.table_name=columns.table_name AND imp.column_name=columns.column_name;
+	GRANT SELECT ON t_import_data_meta TO "phenodb_coworker";
 	
 	SELECT COUNT(t_import_data_meta.*) INTO toreturn FROM t_import_data_meta;
 	RAISE NOTICE 'nrows %',toreturn;
 	
-	DROP TABLE IF EXISTS t_import_data_assessment_item_stats;
-	CREATE TEMP TABLE IF NOT EXISTS t_import_data_assessment_item_stats AS
+	CREATE OR REPLACE TEMP VIEW t_import_data_assessment_item_stats AS
 	SELECT
 	m.assessment_item_code,
 	COUNT(m.assessment_item_variable_code) count_var,
@@ -962,10 +992,9 @@ BEGIN
 	WHERE m.meta = FALSE
 	GROUP BY m.assessment_item_code
 	ORDER BY assessment_item_code;
-	GRANT ALL ON TABLE t_import_data_assessment_item_stats TO "phenodb_coworker";
+	GRANT SELECT ON t_import_data_assessment_item_stats TO "phenodb_coworker";
 	
-	DROP TABLE IF EXISTS t_import_data_assessment_item_variable_stats;
-	CREATE TEMP TABLE IF NOT EXISTS t_import_data_assessment_item_variable_stats AS
+	CREATE OR REPLACE TEMP VIEW t_import_data_assessment_item_variable_stats AS
 	SELECT
 	m.assessment_item_code,
 	m.assessment_item_variable_code,
@@ -975,7 +1004,7 @@ BEGIN
 	FROM t_import_data_meta m
 	WHERE m.meta = FALSE
 	ORDER BY assessment_item_code, assessment_item_variable_code;
-	GRANT ALL ON TABLE t_import_data_assessment_item_variable_stats TO "phenodb_coworker";
+	GRANT SELECT ON t_import_data_assessment_item_variable_stats TO "phenodb_coworker";
 	
 	SELECT COUNT(t_import_data_assessment_item_variable_stats.*) INTO toreturn FROM t_import_data_assessment_item_variable_stats;
 	RAISE NOTICE 'nrows t_import_data_assessment_item_variable_stats=%',toreturn;
@@ -994,7 +1023,9 @@ ALTER FUNCTION coh.prepare_import(
 	)
   OWNER TO "phenodb_coworker";
  
-
+ 
+ 
+ 
  --HERE!!!!
  --Exception when running the new annotation code
 /*
@@ -1017,9 +1048,6 @@ INSERT INTO ttest(spid,item1_var1, item1_var2, item2_var1, item3_var1, item3_var
 SELECT * FROM ttest;
 
 */
-
-
-
 
 
 CREATE OR REPLACE FUNCTION coh.import_data
@@ -1059,7 +1087,7 @@ BEGIN
 	--SELECT assessment.assessment_type INTO string_assessment_main_type FROM met.assessment WHERE addessment.id=var_assessment_id;
 	
 	RAISE NOTICE 'var_cohortinstance_id %',var_cohortinstance_id;
-	RAISE NOTICE 'var_assessment_id %',var_cohortinstance_id;
+	RAISE NOTICE 'var_assessment_id %',var_assessment_id;
 	RAISE NOTICE 'var_cohortstage_id %',var_cohortstage_id;
 	
 	IF do_annotate = FALSE AND EXISTS (SELECT 1 n_column_name FROM t_import_data_meta WHERE t_import_data_meta.n_column_name IS NULL AND t_import_data_meta.meta IS FALSE)
@@ -1113,17 +1141,22 @@ BEGIN
 		FOR r IN 
 		SELECT * FROM 
 		t_import_data_assessment_item_variable_stats vstats 
-		--INNER JOIN t_import_data_assessment_item_variable_annotation a --no possible to annotate variables yet
+		--INNER JOIN t_import_data_assessment_item_variable_annotation a --not possible to manually annotate variables yet
 		--ON istats.assessment_item_code=a.assessment_item_code 
 		WHERE vstats.annotated = FALSE
 		LOOP
+			RAISE NOTICE 'r.assessment_item_code %',r.assessment_item_code;
+			RAISE NOTICE 'met._get_assessment_item()= %',CAST(met._get_assessment_item(var_assessment_id,r.assessment_item_code) AS integer);
+			RAISE NOTICE 'r.assessment_item_variable_code %',r.assessment_item_variable_code;
+			RAISE NOTICE 'variable_original_descriptor=>r.column_name %',CAST(r.column_name AS character varying);
+			RAISE NOTICE 'variable_index=>1 %',CAST(1 AS int);
 			PERFORM met._create_assessment_item_variable_ignoresert
 			(
-				assessment_item => CAST(met._get_assessment_item(var_assessment_id,r.assessment_item_code) AS int),
-				variable_code => CAST(r.assessment_item_variable_code AS character varying),
+				assessment_item => CAST(met._get_assessment_item(var_assessment_id,r.assessment_item_code) AS integer),
+				variable_code => CAST(r.assessment_item_variable_code AS met.varcharcodesimple_lc),
 				variable_original_descriptor => CAST(r.column_name AS character varying),
 				variable_index => CAST(1 AS int),
-				variable_name => CAST(r.assessment_item_variable_code AS int)
+				variable_name => CAST(r.assessment_item_variable_code AS character varying)
 			);
 			PERFORM coh.create_cohortinstance_table_column(cohort_code,instance_code,assessment_code,assessment_version_code,r.assessment_item_code,r.assessment_item_variable_code,r.data_type);
 		END LOOP;
@@ -1132,7 +1165,7 @@ BEGIN
 	IF do_insert
 	THEN
 		SELECT ARRAY(SELECT DISTINCT n_table_name FROM t_import_data_meta WHERE t_import_data_meta.meta =FALSE) INTO n_table_names;
-		SELECT ARRAY(SELECT assessment_item_code FROM t_import_data_meta WHERE t_import_data_meta.cohort_id =TRUE ORDER BY t_import_data_meta.ordinal_position) INTO cohort_id_columns;
+		SELECT ARRAY(SELECT assessment_item_code FROM t_import_data_meta WHERE t_import_data_meta.is_cohort_id =TRUE ORDER BY t_import_data_meta.ordinal_position) INTO cohort_id_columns;
 		c_cohort_id_column:=cohort_id_columns[1];
 
 		RAISE NOTICE 'array %',array_length(n_table_names,1);
@@ -1142,7 +1175,7 @@ BEGIN
 			RAISE NOTICE 'n_table_name %',c_n_table_name;
 
 			string_target_column_names:='_stage,_user,_time_assessment,_individual_identifier';
-			string_source_column_names:= E'\'' || cohortstage_id || E'\'';
+			string_source_column_names:= E'\'' || var_cohortstage_id || E'\'';
 			string_source_column_names:=string_source_column_names || ','  || E'\'' || session_user || E'\'';
 			string_source_column_names:=string_source_column_names || ','  || E'\'' || now() || E'\''; 
 			string_source_column_names:=string_source_column_names || ','  || E'\'' || gen_random_uuid() || E'\'';
@@ -1154,8 +1187,8 @@ BEGIN
 			END LOOP;
 
 
-			string_query := 'INSERT INTO coh.' || c_n_table_name || '(' || string_target_column_names || ')' || 'SELECT ' || string_source_column_names || ' FROM ' || table_name ;
-			--RAISE NOTICE 'Q: %',string_query;
+			string_query := 'INSERT INTO coh.' || c_n_table_name || '(' || string_target_column_names || ')' || ' SELECT ' || string_source_column_names || ' FROM ' || table_name ;
+			RAISE NOTICE 'Q: %',string_query;
 			EXECUTE string_query;
 		END LOOP;
 	END IF;
