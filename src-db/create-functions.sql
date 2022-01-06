@@ -887,6 +887,80 @@ ALTER FUNCTION met._check_cohortinstance_assessment_item_variable_from_column_na
   
  --SELECT met._check_cohortinstance_assessment_item_variable_from_column_name(1,1,"item1_variable1")
  
+
+CREATE OR REPLACE FUNCTION sec._create_cohortinstance_individual
+(
+	cohortinstance_id int,
+	identifier_cohort met.varcharcodesimple_lc,
+	"name" character varying DEFAULT NULL,
+	name_more character varying DEFAULT NULL,
+	surname character varying DEFAULT NULL,
+	sex met.sex DEFAULT NULL,
+	time_birth TIMESTAMP WITH TIME ZONE DEFAULT NULL,
+	country character(2) DEFAULT NULL,
+	email character varying DEFAULT NULL,
+	apartment character varying DEFAULT NULL,
+	house character varying DEFAULT NULL,
+	street character varying DEFAULT NULL,
+	city character varying DEFAULT NULL,
+	province character varying DEFAULT NULL,
+	postal_code character varying DEFAULT NULL,
+	cellphone character varying DEFAULT NULL,
+	phone_other character varying DEFAULT NULL
+) RETURNS uuid AS $$
+DECLARE
+    nid int = NULL;
+	nuuid uuid = NULL;
+BEGIN
+	
+	SELECT 1 id INTO nid FROM sec.individual_cohortinstance_identifier ici
+	WHERE ici.cohortinstance=$1 AND (ici.identifier_cohort=$2 OR ici.identifier::text=$2);
+	
+	IF nid IS NOT NULL
+	THEN
+		RAISE EXCEPTION 'Cohort individual [%] already exists.', $2
+      		USING HINT = 'Not possible to add already existing cohort individual relation.';
+	END IF;
+	
+	--does not match existing individuals outside of the cohort (yet)
+	INSERT INTO sec.individual(name,name_more,surname,sex,time_birth)VALUES($3,$4,$5,$6,$7) RETURNING id INTO nid;
+	INSERT INTO sec.individual_cohortinstance_identifier(individual,cohortinstance,identifier_cohort,country,email,apartment,house,street,city,province,postal_code,cellphone,phone_other)VALUES(nid,$1,$2,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17) RETURNING identifier INTO nuuid;
+	
+	RETURN nuuid;
+END;
+$$ LANGUAGE plpgsql;
+ALTER FUNCTION sec._create_cohortinstance_individual(
+	cohortinstance_id int,
+	identifier_cohort met.varcharcodesimple_lc,
+	"name" character varying,
+	name_more character varying,
+	surname character varying,
+	sex met.sex,
+	time_birth TIMESTAMP WITH TIME ZONE,
+	country character(2),
+	email character varying,
+	apartment character varying,
+	house character varying,
+	street character varying,
+	city character varying,
+	province character varying,
+	postal_code character varying,
+	cellphone character varying,
+	phone_other character varying
+	)
+  OWNER TO "phenodb_coworker";
+
+/*
+SELECT * FROM sec._create_cohortinstance_individual
+(
+	cohortinstance_id => 1::int,
+	identifier_cohort => 'spid1'::met.varcharcodesimple_lc,
+	name => 'Test1'::text,
+	sex => 'male'::met.sex
+);
+ */
+ 
+ 
  
 CREATE OR REPLACE FUNCTION coh.prepare_import
 (
@@ -1025,10 +1099,8 @@ ALTER FUNCTION coh.prepare_import(
  
  
  
- --HERE!!!!
- --Exception when running the new annotation code
 /*
-
+--test input
 DROP TABLE IF EXISTS ttest;
 CREATE TEMP TABLE 
 ttest(
@@ -1047,80 +1119,6 @@ INSERT INTO ttest(spid,item1_var1, item1_var2, item2_var1, item3_var1, item3_var
 SELECT * FROM ttest;
 
 */
-
-CREATE OR REPLACE FUNCTION sec._create_cohortinstance_individual
-(
-	cohortinstance_id int,
-	identifier_cohort met.varcharcodesimple_lc,
-	"name" character varying,
-	name_more character varying,
-	surname character varying,
-	sex met.sex,
-	time_birth TIMESTAMP WITH TIME ZONE,
-	country character(2),
-	email character varying,
-	apartment character varying,
-	house character varying,
-	street character varying,
-	city character varying,
-	province character varying,
-	postal_code character varying,
-	cellphone character varying,
-	phone_other character varying
-) RETURNS uuid AS $$
-DECLARE
-    nid int = NULL;
-	nuuid uuid = NULL;
-BEGIN
-	
-	SELECT 1 id INTO nid FROM sec.individual_cohortinstance_identifier ici
-	WHERE ici.cohortinstance=$1 AND (ici.identifier_cohort=$2 OR ici.identifier::text=$2);
-	
-	IF nid IS NOT NULL
-	THEN
-		RAISE EXCEPTION 'Cohort individual [%] already exists.', $2
-      		USING HINT = 'Not possible to add already existing cohort individual relation.';
-	END IF;
-	
-	--does not match existing individuals outside of the cohort (yet)
-	INSERT INTO sec.individual(name,name_more,surname,sex,time_birth)VALUES($3,$4,$5,$6,$7) RETURNING id INTO nid;
-	INSERT INTO sec.individual_cohortinstance_identifier(individual,cohortinstance,identifier_cohort,country,email,apartment,house,street,city,province,postal_code,cellphone,phone_other)VALUES(nid,$1,$2,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17) RETURNING identifier INTO nuuid;
-	
-	RETURN nuuid;
-END;
-$$ LANGUAGE plpgsql;
-ALTER FUNCTION sec._create_cohortinstance_individual(
-	cohortinstance_id int,
-	identifier_cohort met.varcharcodesimple_lc,
-	"name" character varying,
-	name_more character varying,
-	surname character varying,
-	sex met.sex,
-	time_birth TIMESTAMP WITH TIME ZONE,
-	country character(2),
-	email character varying,
-	apartment character varying,
-	house character varying,
-	street character varying,
-	city character varying,
-	province character varying,
-	postal_code character varying,
-	cellphone character varying,
-	phone_other character varying
-	)
-  OWNER TO "phenodb_coworker";
-
---why does this not work?
---SELECT * FROM sec._create_cohortinstance_individual(1::int,'spid1'::met.varcharcodesimple_lc,'Test1'::character varying,NULL,NULL,'male'::met.sex,now());
-/*
-SELECT * FROM sec._create_cohortinstance_individual
-(
-	cohortinstance_id => 1::int,
-	identifier_cohort => 'spid1'::met.varcharcodesimple_lc,
-	name => 'Test1'::text,
-	sex => 'male'::met.sex
-);
- */
 
 CREATE OR REPLACE FUNCTION coh.import_data
 (
@@ -1168,7 +1166,7 @@ BEGIN
 	SELECT ARRAY(SELECT assessment_item_code FROM t_import_data_meta WHERE t_import_data_meta.is_cohort_id =TRUE ORDER BY t_import_data_meta.ordinal_position) INTO cohort_id_columns;
 	c_cohort_id_column:=cohort_id_columns[1];
 	
-	string_query := 'CREATE OR REPLACE TEMP VIEW t_src_individual AS SELECT src.*, src.' || c_cohort_id_column || '_spid, ici.identifier _individual_identifier FROM ' || table_name || ' src ' || ' LEFT OUTER JOIN sec.individual_cohortinstance_identifier ici ON (src.' || c_cohort_id_column || '=ici.identifier_cohort OR src.' || c_cohort_id_column || '=ici.identifier::text) AND ici.cohortinstance=' || var_cohortinstance_id || ' LEFT OUTER JOIN sec.individual i ON ici.individual=i.id';
+	string_query := 'CREATE OR REPLACE TEMP VIEW t_src_individual AS SELECT src.*, src.' || c_cohort_id_column || ' _spid, ici.identifier _individual_identifier FROM ' || table_name || ' src ' || ' LEFT OUTER JOIN sec.individual_cohortinstance_identifier ici ON (src.' || c_cohort_id_column || '=ici.identifier_cohort OR src.' || c_cohort_id_column || '=ici.identifier::text) AND ici.cohortinstance=' || var_cohortinstance_id || ' LEFT OUTER JOIN sec.individual i ON ici.individual=i.id';
 	RAISE NOTICE 'Q: %',string_query;
 	EXECUTE string_query;
 	
@@ -1250,7 +1248,11 @@ BEGIN
 	THEN
 		FOR r IN SELECT src.* FROM t_src_individual src WHERE src._individual_identifier IS NULL
 		LOOP
-			
+			PERFORM sec._create_cohortinstance_individual
+			(
+				cohortinstance_id => var_cohortinstance_id,
+				identifier_cohort => r._spid
+			);
 		END LOOP;
 	END IF;
 	
