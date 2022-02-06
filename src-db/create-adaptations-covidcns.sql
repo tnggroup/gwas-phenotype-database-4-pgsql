@@ -1,6 +1,5 @@
 /*
- * Sketch dat_cohort data tables for the covidcns cohort study.
- * assessment_cohort_country_cohortinstance
+ * Adaptations for the covidcns cohort study.
  */
  
  -- metadata entries
@@ -8,83 +7,14 @@
 INSERT INTO met.cohort(code,name,abbreviation,data_collection_country,primary_targeted_phenotype,data_collection_sex,documentation) VALUES('covidcns','The COVID-19 Clinical Neuroscience Study','COVID-CNS','gb',1,'mix','The COVID-CNS cohort. To be updated.');
 INSERT INTO met.reference(doi,pmid,year,documentation) VALUES('10.1136/bmj.m3871','33051183',2020,'Neuropsychiatric complications of covid-19');
 INSERT INTO met.cohortstage(code,cohort,name,abbreviation,order_index) VALUES('bl',met.get_cohort('covidcns'),'Baseline','BL',0);
-INSERT INTO met.cohortinstance(code,cohort,name,abbreviation,reference) VALUES('2021',met.get_cohort('covidcns'),'First extraction in 2021','2021',met.get_reference_by_doi('10.1136/bmj.m3871'));
+INSERT INTO met.cohortinstance(code,cohort,name,abbreviation,reference) VALUES('2022',met.get_cohort('covidcns'),'First extraction in 2022','2022',met.get_reference_by_doi('10.1136/bmj.m3871'));
 INSERT INTO met.assessment_item_type(assessment_type,code,name,abbreviation,documentation) VALUES('imaging','idp','Imaging-Derived Phenotype','IDP','Measurements based on imaging derived and QC metrics.');
-
-SELECT met.create_assessment_ignoresert(
-	assessment_type =>'questionnaire',
-	assessment_code => 'atest',
-	assessment_version_code => '1',
-	name => 'Databse test assessment',
-	abbreviation => 'ATEST1',
-	reference_id => met.get_reference_by_doi('10.1136/bmj.m3871'),
-	documentation => 'This is a test assessment for developing the database.'
-	);
-
-SELECT met.create_assessment_item_ignoresert(
-	assessment_code => 'atest',
-	assessment_version_code => '1',
-	assessment_type => 'questionnaire',
-	assessment_item_type_code => 'single',
-	item_code => 'item1',
-    item_original_descriptor => 'item1',
-    item_name => 'Item 1',
-    item_index => 1,
-    item_text => 'Enter your age and name.',
-    documentation => 'A non-existing test-item.'
-);
-
-select met._create_assessment_item_variable_ignoresert(
-	assessment_item => met.get_assessment_item('atest','1','item1'),
-	variable_code => 'var1',
-    variable_original_descriptor => 'var1',
-    variable_index => 1,
-	variable_name => 'Age',
-	variable_unit => 'year'
-);
-
-select met._create_assessment_item_variable_ignoresert(
-	assessment_item => met.get_assessment_item('atest','1','item1'),
-	variable_code => 'var2',
-    variable_original_descriptor => 'var2',
-    variable_index => 2,
-	variable_name => 'Name'
-);
-
-SELECT met.create_assessment_item_ignoresert(
-	assessment_code => 'atest',
-	assessment_version_code => '1',
-	assessment_type => 'questionnaire',
-	assessment_item_type_code => 'single',
-	item_code => 'item2',
-    item_original_descriptor => 'item2',
-    item_name => 'Item 2',
-    item_index => 1,
-    item_text => 'What is your weight in kg?',
-    documentation => 'A non-existing test-item.'
-);
-
-select met._create_assessment_item_variable_ignoresert(
-	assessment_item => met.get_assessment_item('atest','1','item2'),
-	variable_code => 'var1',
-    variable_original_descriptor => 'var1',
-    variable_index => 1,
-	variable_name => 'Weight',
-	variable_unit => 'kg'
-);
-
-SELECT coh.create_cohortinstance_table('covidcns','2021','atest','1');
-SELECT coh.create_cohortinstance_table_column('covidcns','2021','atest','1','item1','var1','integer');
-SELECT coh.create_cohortinstance_table_column('covidcns','2021','atest','1','item1','var2','text');
-SELECT coh.create_cohortinstance_table_column('covidcns','2021','atest','1','item2','var1','double precision');
-
-
 
 SELECT met.create_assessment_ignoresert(
 	assessment_type =>'imaging',
 	assessment_code => 'idpukbb',
-	assessment_version_code => '2021',
-	name => 'Oxford server/UK Biobank type IDP collection',
+	assessment_version_code => '2022',
+	name => 'Oxford server/UK Biobank type IDP collection, as of 2022',
 	abbreviation => 'IDP UKBB',
 	reference_id => met.get_reference_by_doi('10.1136/bmj.m3871'),
 	documentation => ''
@@ -105,14 +35,19 @@ SELECT met.create_assessment_ignoresert(
 
 
 DROP TABLE IF EXISTS timp CASCADE;
-CREATE TEMP TABLE timp AS SELECT * FROM public.age_covidcns_clean;
+CREATE TEMP TABLE timp AS SELECT * FROM public.ethnicity_covidcns_clean;
 GRANT ALL ON TABLE timp TO "phenodb_coworker";
 SELECT s.* FROM timp s;
 
-DROP TABLE IF EXISTS tan CASCADE;
-CREATE TEMP TABLE tan AS SELECT * FROM public."variable_annotation";
-GRANT ALL ON TABLE tan TO "phenodb_coworker";
-SELECT s.* FROM tan s;
+DROP TABLE IF EXISTS tvan CASCADE;
+CREATE TEMP TABLE tvan AS SELECT * FROM public."variable_annotation";
+GRANT ALL ON TABLE tvan TO "phenodb_coworker";
+SELECT s.* FROM tvan s;
+
+DROP TABLE IF EXISTS tian CASCADE;
+CREATE TEMP TABLE tian AS SELECT * FROM public."item_annotation";
+GRANT ALL ON TABLE tian TO "phenodb_coworker";
+SELECT s.* FROM tian s;
 
 --SELECT met.parse_assessment_item_variable_code_from_column_name('ID')
 
@@ -121,12 +56,14 @@ SELECT s.* FROM tan s;
   --SELECT * FROM met.get_cohortstage('covidcns','bl');
 SELECT * FROM coh.prepare_import(
 	cohort_code =>'covidcns',
-	instance_code =>'2021',
+	instance_code =>'2022',
 	assessment_code =>'covidcnsdem',
 	assessment_version_code =>'1',
 	table_name =>'timp',
-	cohort_id_column_name=>'ID',
-	varable_annotation_table_name =>'tan');
+	cohort_id_column_name=>'id',
+	varable_annotation_table_name =>'tvan',
+	item_annotation_table_name =>'tian'
+);
 SELECT * FROM t_import_data_meta;
 SELECT * FROM t_import_data_assessment_item_stats;
 SELECT * FROM t_import_data_assessment_item_variable_stats;
@@ -136,7 +73,7 @@ SELECT * FROM t_import_data_assessment_item_annotation;
  
 SELECT * FROM coh.import_data(
  	cohort_code => 'covidcns',
-	instance_code => '2021',
+	instance_code => '2022',
 	assessment_code => 'covidcnsdem',
 	assessment_version_code => '1',
 	stage_code => 'bl',
@@ -151,7 +88,7 @@ SELECT * FROM t_import_data_assessment_item_annotation;
 
 SELECT * FROM coh.import_data(
  	cohort_code => 'covidcns',
-	instance_code => '2021',
+	instance_code => '2022',
 	assessment_code => 'covidcnsdem',
 	assessment_version_code => '1',
 	stage_code => 'bl',
@@ -163,7 +100,7 @@ SELECT * FROM coh.import_data(
  
  SELECT * FROM coh.import_data(
  	cohort_code => 'covidcns',
-	instance_code => '2021',
+	instance_code => '2022',
 	assessment_code => 'covidcnsdem',
 	assessment_version_code => '1',
 	stage_code => 'bl',
@@ -175,7 +112,7 @@ SELECT * FROM coh.import_data(
  
  SELECT * FROM coh.import_data(
  	cohort_code => 'covidcns',
-	instance_code => '2021',
+	instance_code => '2022',
 	assessment_code => 'covidcnsdem',
 	assessment_version_code => '1',
 	stage_code => 'bl',

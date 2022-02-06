@@ -1043,7 +1043,7 @@ BEGIN
 	IF item_annotation_table_name IS NOT NULL
 	THEN
 		DROP TABLE IF EXISTS t_import_data_assessment_item_annotation CASCADE;
-		string_query:= 'CREATE TEMP TABLE IF NOT EXISTS t_import_data_assessment_variable_annotation AS SELECT * FROM ' || item_annotation_table_name ;
+		string_query:= 'CREATE TEMP TABLE IF NOT EXISTS t_import_data_assessment_item_annotation AS SELECT * FROM ' || item_annotation_table_name ;
 		EXECUTE string_query;
 	/*
 	ELSE
@@ -1217,11 +1217,11 @@ BEGIN
 	EXECUTE string_query;
 
 	--fallback/template annotation - --TODO - SEPARATE THE ANNOTATIN TABLES FROM THE STATS-VIEWS!
-	IF NOT EXISTS (SELECT * FROM information_schema.tables WHERE tables.table_catalog='phenodb' AND tables.table_type='LOCAL_TEMPORARY' AND tables.table_name='t_import_data_assessment_item_annotation') --OR NOT EXISTS (SELECT FROM t_import_data_assessment_item_annotation)
+	IF NOT EXISTS (SELECT * FROM information_schema.tables WHERE tables.table_catalog='phenodb' AND tables.table_type='LOCAL_TEMPORARY' AND tables.table_name='t_import_data_assessment_item_annotation') AND NOT EXISTS (SELECT FROM t_import_data_assessment_item_annotation)
 	THEN
 		DROP TABLE IF EXISTS t_import_data_assessment_item_annotation CASCADE;
 		CREATE TEMP TABLE t_import_data_assessment_item_annotation AS
-		SELECT istats.assessment_item_code,
+		SELECT istats.assessment_item_code item_code,
 		--string_assessment_main_type assessment_type,
 		'questionnaire' assessment_type,
 		CASE
@@ -1252,7 +1252,7 @@ BEGIN
 		SELECT * FROM 
 		t_import_data_assessment_item_stats istats 
 		INNER JOIN t_import_data_assessment_item_annotation a 
-		ON istats.assessment_item_code=a.assessment_item_code WHERE istats.count_annotated_var < istats.count_var
+		ON istats.assessment_item_code=a.item_code WHERE istats.count_annotated_var < istats.count_var
 		LOOP
 			RAISE NOTICE 'r.assessment_type %',r.assessment_type;
 			PERFORM met._create_assessment_item_ignoresert(
