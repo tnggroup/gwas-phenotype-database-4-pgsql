@@ -436,7 +436,7 @@ CREATE OR REPLACE FUNCTION met.construct_cohortinstance_table_name
 	instance_code met.varcharcodeletnum_lc,
 	assessment_code met.varcharcodeletnum_lc,
 	assessment_version_code met.varcharcodeletnum_lc,
-	table_index int default 0
+	table_index int default 1
 ) RETURNS met.varcharcodeletnum_lc AS $$
 BEGIN
 	return cohort_code ||'_'|| instance_code ||'_'||  assessment_code || '_' || assessment_version_code ||  '_' || table_index::text;
@@ -964,6 +964,99 @@ SELECT * FROM sec._create_cohortinstance_individual
 );
  */
  
+CREATE OR REPLACE FUNCTION coh._create_query_select_current_assessment_item_variable
+(
+	assessment_item_variable int []
+) RETURNS text AS $$
+DECLARE
+    nid int = NULL;
+    string_query_full text:='';
+    n_table_names text[];
+	c_n_table_name text;
+    string_query_columns text;
+    string_query_from text;
+    r RECORD;
+BEGIN
+
+	SELECT ARRAY(SELECT DISTINCT table_name from (SELECT UNNEST($1) assessment_item_variable) aiv inner join met.cohort_inventory ci on aiv.assessment_item_variable=ci.assessment_item_variable_id) INTO n_table_names;
+		
+	RAISE NOTICE 'array %',array_length(n_table_names,1);
+
+	FOREACH c_n_table_name IN ARRAY n_table_names
+	LOOP
+		
+		string_query_columns:='SELECT d.*';
+		string_query_from:='FROM (SELECT DISTINCT _stage,_individual_identifier FROM coh.' || c_n_table_name || ' ) d';
+		
+		FOR r IN select ci.* from (SELECT UNNEST($1) assessment_item_variable) aiv inner join met.cohort_inventory ci on aiv.assessment_item_variable=ci.assessment_item_variable_id AND ci.table_name=c_n_table_name
+		LOOP
+			RAISE NOTICE 'r.assessment_item_variable_id %',r.assessment_item_variable_id;
+			string_query_columns := string_query_columns || ',q' || r.assessment_item_variable_id || '.' || r.column_name;
+			string_query_from := string_query_from || ' LEFT OUTER JOIN LATERAL (
+		SELECT _id,_time_entry,_time_assessment,_user,' || r.column_name ||' FROM coh.' || c_n_table_name || ' d1 where d._stage=d1._stage and d._individual_identifier=d1._individual_identifier and d1.'|| r.column_name ||' is not NULL
+		order by d1._time_entry desc
+		limit 1
+		) q' || r.assessment_item_variable_id || ' ON TRUE';
+			
+		END LOOP;
+		
+		RAISE NOTICE 'string_query_columns: %',string_query_columns;
+		RAISE NOTICE 'string_query_from: %',string_query_from;
+	
+		string_query_full:=string_query_full || string_query_columns || ' ' || string_query_from || '; ';
+
+	END LOOP;
+
+	
+
+	/*
+	select d.*, q1.dobage, q2.whatgenderdoyouidentifywith
+	--row_number() OVER (PARTITION BY _stage,_individual_identifier ORDER BY _time_entry DESC) _r1
+	from (select distinct _stage,_individual_identifier from coh.covidcns_2022_covidcnsdem_1_1) d
+	left outer join lateral (
+	select _id,_time_entry,_time_assessment,_user,
+	dobage from coh.covidcns_2022_covidcnsdem_1_1 d1 where d._stage=d1._stage and d._individual_identifier=d1._individual_identifier and d1.dobage is not NULL
+	order by d1._time_entry desc
+	limit 1
+	) q1 on true
+	left outer join lateral (
+	select _id,_time_entry,_time_assessment,_user,
+	whatgenderdoyouidentifywith from coh.covidcns_2022_covidcnsdem_1_1 d1 where d._stage=d1._stage and d._individual_identifier=d1._individual_identifier and d1.whatgenderdoyouidentifywith is not NULL
+	order by d1._time_entry desc
+	limit 1
+	) q2 on true
+	--met.construct_cohortinstance_table_name('covidcns','2022','covidcnsdem','1',1)
+
+	
+	EXECUTE 'CREATE TABLE IF NOT EXISTS coh.' || tname || '(_id integer NOT NULL GENERATED ALWAYS AS IDENTITY ( INCREMENT 1 START 1 MINVALUE 1 MAXVALUE 2147483647 CACHE 1 ),_stage integer NOT NULL,_individual_identifier uuid NOT NULL,_time_entry TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),_time_assessment TIMESTAMP WITH TIME ZONE NOT NULL,_user name NOT NULL DEFAULT session_user, CONSTRAINT ' || tname || '_stage_fk FOREIGN KEY (_stage) REFERENCES met.cohortstage(id));';
+	*/
+
+	RETURN string_query_full;
+END;
+$$ LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = coh, pg_temp;
+ALTER FUNCTION coh._create_query_select_current_assessment_item_variable(
+	assessment_item_variable int []
+	)
+  OWNER TO "phenodb_owner";
+  
+CREATE OR REPLACE FUNCTION public.execute_generic
+(
+	query_text text
+) RETURNS RECORD$$
+	
+	EXECUTE query_text;
+
+$$ LANGUAGE sql;
+--SECURITY DEFINER
+--SET search_path = met, pg_temp;
+ALTER FUNCTION public.execute_generic(
+	query_text text
+	)
+  OWNER TO "phenodb_coworker";
+  
+ 
 
 CREATE OR REPLACE FUNCTION coh.prepare_import
 (
@@ -1217,7 +1310,7 @@ BEGIN
 	EXECUTE string_query;
 
 	--fallback/template annotation - --TODO - SEPARATE THE ANNOTATIN TABLES FROM THE STATS-VIEWS!
-	IF NOT EXISTS (SELECT * FROM information_schema.tables WHERE tables.table_catalog='phenodb' AND tables.table_type='LOCAL_TEMPORARY' AND tables.table_name='t_import_data_assessment_item_annotation') AND NOT EXISTS (SELECT FROM t_import_data_assessment_item_annotation)
+	IF NOT EXISTS (SELECT * FROM information_schema.tables WHERE tables.table_catalog='phenodb' AND tables.table_type='LOCAL_TEMPORARY' AND tables.table_name='t_import_data_assessment_item_annotation') -- AND NOT EXISTS (SELECT FROM t_import_data_assessment_item_annotation)
 	THEN
 		DROP TABLE IF EXISTS t_import_data_assessment_item_annotation CASCADE;
 		CREATE TEMP TABLE t_import_data_assessment_item_annotation AS

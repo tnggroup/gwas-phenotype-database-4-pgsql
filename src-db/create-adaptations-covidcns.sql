@@ -30,24 +30,69 @@ SELECT met.create_assessment_ignoresert(
 	documentation => 'Contains both demographics blocks.'
 	);
 
+SELECT met.create_assessment_ignoresert(
+	assessment_type =>'questionnaire',
+	assessment_code => 'covidcnsimpact',
+	assessment_version_code => '1',
+	name => 'COVID-CNS Impact of COVID',
+	abbreviation => 'IMPACT',
+	reference_id => met.get_reference_by_doi('10.1136/bmj.m3871'),
+	documentation => ''
+	);
+
+INSERT INTO met.reference(doi,pmid,year,documentation) VALUES('10.1001/jama.252.14.1905','6471323',1984,'Detecting alcoholism. The CAGE questionnaire');
+SELECT met.create_assessment_ignoresert(
+	assessment_type =>'questionnaire',
+	assessment_code => 'cage',
+	assessment_version_code => 'covidcns',
+	name => 'Alcohol CAGE',
+	abbreviation => 'CAGE',
+	reference_id => met.get_reference_by_doi('10.1001/jama.252.14.1905'),
+	documentation => ''
+	);
+
+INSERT INTO met.reference(doi,pmid,year,documentation) VALUES('10.1093/occmed/kqu168','25559796',2015,'The Chalder Fatigue Scale (CFQ 11)');
+SELECT met.create_assessment_ignoresert(
+	assessment_type =>'questionnaire',
+	assessment_code => 'cfq11',
+	assessment_version_code => 'covidcns',
+	name => 'The Chalder Fatigue Scale',
+	abbreviation => 'CFQ 11',
+	reference_id => met.get_reference_by_doi('10.1093/occmed/kqu168'),
+	documentation => ''
+	);
+
+INSERT INTO met.reference(doi,pmid,year,documentation) VALUES('10.21203/rs.3.pex-1085/v1',NULL,2020,'Great British Intelligence Test Protocol');
+SELECT met.create_assessment_ignoresert(
+	assessment_type =>'questionnaire',
+	assessment_code => 'cognitronq',
+	assessment_version_code => '2022',
+	name => 'Cognitron questionnaire',
+	abbreviation => 'COGNITRON Questionnaire',
+	reference_id => met.get_reference_by_doi('10.21203/rs.3.pex-1085/v1'),
+	documentation => ''
+	);
+
 
 --IMPORT ATTEMPT 202201
 
 
 DROP TABLE IF EXISTS timp CASCADE;
-CREATE TEMP TABLE timp AS SELECT * FROM public.ethnicity_covidcns_clean;
+CREATE TEMP TABLE timp AS SELECT * FROM postgres._import_data_df;
 GRANT ALL ON TABLE timp TO "phenodb_coworker";
 SELECT s.* FROM timp s;
 
+DROP TABLE IF EXISTS tian CASCADE;
+CREATE TEMP TABLE tian AS SELECT * FROM postgres._item_annotation_df;
+GRANT ALL ON TABLE tian TO "phenodb_coworker";
+SELECT s.* FROM tian s;
+
 DROP TABLE IF EXISTS tvan CASCADE;
-CREATE TEMP TABLE tvan AS SELECT * FROM public."variable_annotation";
+CREATE TEMP TABLE tvan AS SELECT * FROM postgres._variable_annotation_df;
 GRANT ALL ON TABLE tvan TO "phenodb_coworker";
 SELECT s.* FROM tvan s;
 
-DROP TABLE IF EXISTS tian CASCADE;
-CREATE TEMP TABLE tian AS SELECT * FROM public."item_annotation";
-GRANT ALL ON TABLE tian TO "phenodb_coworker";
-SELECT s.* FROM tian s;
+
 
 --SELECT met.parse_assessment_item_variable_code_from_column_name('ID')
 
@@ -57,7 +102,7 @@ SELECT s.* FROM tian s;
 SELECT * FROM coh.prepare_import(
 	cohort_code =>'covidcns',
 	instance_code =>'2022',
-	assessment_code =>'covidcnsdem',
+	assessment_code =>'covidcnsimpact',
 	assessment_version_code =>'1',
 	table_name =>'timp',
 	cohort_id_column_name=>'id',
@@ -74,7 +119,7 @@ SELECT * FROM t_import_data_assessment_item_annotation;
 SELECT * FROM coh.import_data(
  	cohort_code => 'covidcns',
 	instance_code => '2022',
-	assessment_code => 'covidcnsdem',
+	assessment_code => 'covidcnsimpact',
 	assessment_version_code => '1',
 	stage_code => 'bl',
 	table_name => 'timp',
@@ -89,7 +134,7 @@ SELECT * FROM t_import_data_assessment_item_annotation;
 SELECT * FROM coh.import_data(
  	cohort_code => 'covidcns',
 	instance_code => '2022',
-	assessment_code => 'covidcnsdem',
+	assessment_code => 'covidcnsimpact',
 	assessment_version_code => '1',
 	stage_code => 'bl',
 	table_name => 'timp',
@@ -101,7 +146,7 @@ SELECT * FROM coh.import_data(
  SELECT * FROM coh.import_data(
  	cohort_code => 'covidcns',
 	instance_code => '2022',
-	assessment_code => 'covidcnsdem',
+	assessment_code => 'covidcnsimpact',
 	assessment_version_code => '1',
 	stage_code => 'bl',
 	table_name => 'timp',
@@ -113,7 +158,7 @@ SELECT * FROM coh.import_data(
  SELECT * FROM coh.import_data(
  	cohort_code => 'covidcns',
 	instance_code => '2022',
-	assessment_code => 'covidcnsdem',
+	assessment_code => 'covidcnsimpact',
 	assessment_version_code => '1',
 	stage_code => 'bl',
 	table_name => 'timp',
@@ -121,6 +166,37 @@ SELECT * FROM coh.import_data(
 	add_individuals => FALSE,
 	do_insert => TRUE
  );
+
+SELECT * FROM coh.prepare_import(
+	cohort_code =>'covidcns',
+	instance_code =>'2022',
+	assessment_code =>'cognitronq',
+	assessment_version_code =>'2022',
+	table_name =>'timp',
+	cohort_id_column_name=>'id',
+	varable_annotation_table_name =>'tvan'
+);
+SELECT * FROM t_import_data_meta;
+SELECT * FROM t_import_data_assessment_item_stats;
+SELECT * FROM t_import_data_assessment_item_variable_stats;
+SELECT * FROM t_import_data_assessment_variable_annotation;
+SELECT * FROM t_import_data_assessment_item_annotation;
+
+ 
+SELECT * FROM coh.import_data(
+ 	cohort_code => 'covidcns',
+	instance_code => '2022',
+	assessment_code => 'cognitronq',
+	assessment_version_code => '2022',
+	stage_code => 'bl',
+	table_name => 'timp',
+	do_annotate => TRUE,
+	add_individuals => TRUE,
+	do_insert => TRUE
+ );
+  
+SELECT * FROM t_import_data_assessment_variable_annotation;
+SELECT * FROM t_import_data_assessment_item_annotation;
  
  /*
  INSERT INTO coh.covidcns_2021_covidcnsdem_1_1(_stage,_user,_time_assessment,_individual_identifier,startdate,enddate,sample,howoldareyounowtxt,dobage) 
