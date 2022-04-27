@@ -96,8 +96,8 @@ SELECT s.* FROM tvan s;
 
 --SELECT met.parse_assessment_item_variable_code_from_column_name('ID')
 
---SELECT * FROM met.get_cohortinstance('covidcns','2021');
-  --SELECT * FROM met.get_assessment('covidcnsdem','1');
+--SELECT * FROM met.get_cohortinstance('covidcns','2022');
+  --SELECT * FROM met.get_assessment('covidcnsimpact','1');
   --SELECT * FROM met.get_cohortstage('covidcns','bl');
 SELECT * FROM coh.prepare_import(
 	cohort_code =>'covidcns',

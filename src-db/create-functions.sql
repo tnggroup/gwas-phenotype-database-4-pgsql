@@ -255,6 +255,42 @@ ALTER FUNCTION met._get_assessment_item_variable(
 	)
   OWNER TO "phenodb_coworker";
  
+ 
+  --DROP FUNCTION met.get_assessment_item_variables;
+CREATE OR REPLACE FUNCTION met.get_assessment_item_variables
+(
+	assessment_code met.varcharcodeletnum_lc,
+	assessment_version_code met.varcharcodeletnum_lc,
+	assessment_item_code met.varcharcodeletnum_lc[] DEFAULT ARRAY[]::met.varcharcodeletnum_lc[]
+) RETURNS int[] AS $$
+DECLARE
+    toreturn int [] = NULL;
+BEGIN
+	
+	toreturn:=ARRAY(
+		SELECT assessment_item_variable.id FROM 
+		met.assessment_item_variable INNER JOIN met.assessment_item ON assessment_item_variable.assessment_item=assessment_item.id
+		LEFT OUTER JOIN (SELECT UNNEST($3) cassessment_item_code) aic ON aic.cassessment_item_code=assessment_item.item_code
+		WHERE
+			assessment_item.assessment=met.get_assessment($1,$2)
+		AND ((cardinality($3)<1 AND aic.cassessment_item_code IS NULL) OR aic.cassessment_item_code IS NOT NULL)
+	);
+	RETURN toreturn;
+END;
+$$ LANGUAGE plpgsql;
+--SECURITY DEFINER
+--SET search_path = met, pg_temp;
+ALTER FUNCTION met.get_assessment_item_variables(
+	assessment_code met.varcharcodeletnum_lc,
+	assessment_version_code met.varcharcodeletnum_lc,
+	assessment_item_code met.varcharcodeletnum_lc[]
+	)
+  OWNER TO "phenodb_coworker";
+  
+--SELECT * FROM met.get_assessment_item_variables('covidcnsdem','1',ARRAY['dobage','ethnicorigin']);
+--SELECT * FROM met.get_assessment_item_variables('covidcnsdem','1');
+ 
+ 
 CREATE OR REPLACE FUNCTION met.create_assessment_ignoresert
 (
 	assessment_type met.varcharcodesimple_lc,
@@ -969,7 +1005,7 @@ CREATE OR REPLACE FUNCTION coh._create_current_assessment_item_variable_tview
 	assessment_item_variable int []
 ) RETURNS text AS $$
 DECLARE
-    nid int = NULL;
+    itable int = 1;
     string_query_full text:='';
     n_table_names text[];
 	c_n_table_name text;
@@ -978,36 +1014,39 @@ DECLARE
     r RECORD;
 BEGIN
 
-	SELECT ARRAY(SELECT DISTINCT table_name from (SELECT UNNEST($1) assessment_item_variable) aiv inner join met.cohort_inventory ci on aiv.assessment_item_variable=ci.assessment_item_variable_id) INTO n_table_names;
+	DROP VIEW IF EXISTS t_export_data CASCADE;
+	
+	SELECT ARRAY(SELECT DISTINCT table_name FROM (SELECT UNNEST($1) assessment_item_variable) aiv INNER JOIN met.cohort_inventory ci ON aiv.assessment_item_variable=ci.assessment_item_variable_id ORDER BY table_name) INTO n_table_names;
 		
-	RAISE NOTICE 'array %',array_length(n_table_names,1);
-
+	--RAISE NOTICE 'array %',array_length(n_table_names,1);
+	
+	string_query_columns:='CREATE OR REPLACE TEMP VIEW t_export_data AS SELECT d.*';
+	string_query_from:='FROM (';
 	FOREACH c_n_table_name IN ARRAY n_table_names
 	LOOP
-		
-		DROP VIEW IF EXISTS t_export_data CASCADE;
-		
-		string_query_columns:='CREATE OR REPLACE TEMP VIEW t_export_data AS SELECT d.*';
-		string_query_from:='FROM (SELECT DISTINCT _stage,_individual_identifier FROM coh.' || c_n_table_name || ' ) d';
-		
-		FOR r IN select ci.* from (SELECT UNNEST($1) assessment_item_variable) aiv inner join met.cohort_inventory ci on aiv.assessment_item_variable=ci.assessment_item_variable_id AND ci.table_name=c_n_table_name
-		LOOP
-			--RAISE NOTICE 'r.assessment_item_variable_id %',r.assessment_item_variable_id;
-			string_query_columns := string_query_columns || ',q' || r.assessment_item_variable_id || '.' || r.column_name;
-			string_query_from := string_query_from || ' LEFT OUTER JOIN LATERAL (
-		SELECT _id,_time_entry,_time_assessment,_user,' || r.column_name ||' FROM coh.' || c_n_table_name || ' d1 where d._stage=d1._stage and d._individual_identifier=d1._individual_identifier and d1.'|| r.column_name ||' is not NULL
-		order by d1._time_entry desc
-		limit 1
-		) q' || r.assessment_item_variable_id || ' ON TRUE';
-			
-		END LOOP;
-		
-		--RAISE NOTICE 'string_query_columns: %',string_query_columns;
-		--RAISE NOTICE 'string_query_from: %',string_query_from;
-	
-		string_query_full:=string_query_full || string_query_columns || ' ' || string_query_from || '; ';
+		IF itable>1 THEN string_query_from:=string_query_from || ' UNION '; END IF;
+		string_query_from:=string_query_from || 'SELECT DISTINCT _stage,_individual_identifier FROM coh.' || c_n_table_name;
+		itable:=itable+1;
+	END LOOP;
+	string_query_from:=string_query_from || ') d';
+
+	FOR r IN SELECT ci.* FROM (SELECT UNNEST($1) assessment_item_variable, generate_subscripts($1,1) rn) aiv INNER JOIN met.cohort_inventory ci ON aiv.assessment_item_variable=ci.assessment_item_variable_id ORDER BY aiv.rn
+	LOOP
+		--RAISE NOTICE 'r.assessment_item_variable_id %',r.assessment_item_variable_id;
+		string_query_columns := string_query_columns || ',q' || r.assessment_item_variable_id || '.' || r.column_name;
+		string_query_from := string_query_from || ' LEFT OUTER JOIN LATERAL (
+	SELECT _id,_time_entry,_time_assessment,_user,' || r.column_name ||' FROM coh.' || r.table_name || ' d1 where d._stage=d1._stage and d._individual_identifier=d1._individual_identifier and d1.'|| r.column_name ||' IS NOT NULL
+	ORDER BY d1._time_entry desc, d1._id desc
+	limit 1
+	) q' || r.assessment_item_variable_id || ' ON TRUE';
 
 	END LOOP;
+
+	--RAISE NOTICE 'string_query_columns: %',string_query_columns;
+	--RAISE NOTICE 'string_query_from: %',string_query_from;
+
+	
+	string_query_full:=string_query_full || string_query_columns || ' ' || string_query_from || '; ';
 
 	EXECUTE string_query_full;
 	RETURN string_query_full;
@@ -1019,9 +1058,14 @@ ALTER FUNCTION coh._create_current_assessment_item_variable_tview(
 	assessment_item_variable int []
 	)
   OWNER TO "phenodb_owner";
+
  
  
 --SELECT * FROM coh._create_current_assessment_item_variable_tview(ARRAY[137,138])
+--SELECT * FROM coh._create_current_assessment_item_variable_tview(met.get_assessment_item_variables('covidcnsdem','1',ARRAY['dobage','ethnicorigin'])
+--||
+--met.get_assessment_item_variables('cfq11','covidcns',ARRAY['correctworddifficultfind','feelweakweek','startsincecovid19questionrequi'])
+--);
 --SELECT * FROM t_export_data
  
  
