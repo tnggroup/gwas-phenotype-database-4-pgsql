@@ -1,8 +1,18 @@
 /*
  * Adaptations for the covidcns cohort study.
  */
+
+-- private schema for covidcns private stuff
+
+CREATE SCHEMA coh_covidcns
+    AUTHORIZATION phenodb;
+
+COMMENT ON SCHEMA coh_covidcns
+    IS 'Schema for the COVID-CNS cohort, for holding private procedures.';
+
  
  -- metadata entries
+
 
 INSERT INTO met.cohort(code,name,abbreviation,data_collection_country,primary_targeted_phenotype,data_collection_sex,documentation) VALUES('covidcns','The COVID-19 Clinical Neuroscience Study','COVID-CNS','gb',1,'mix','The COVID-CNS cohort. To be updated.');
 INSERT INTO met.reference(doi,pmid,year,documentation) VALUES('10.1136/bmj.m3871','33051183',2020,'Neuropsychiatric complications of covid-19');
@@ -74,144 +84,39 @@ SELECT met.create_assessment_ignoresert(
 	);
 
 
---IMPORT ATTEMPT 202201
+-- private import routines for covidcns web database
 
 
-DROP TABLE IF EXISTS timp CASCADE;
-CREATE TEMP TABLE timp AS SELECT * FROM postgres._import_data_df;
-GRANT ALL ON TABLE timp TO "phenodb_coworker";
-SELECT s.* FROM timp s;
+--this does not work
+CREATE EXTENSION IF NOT EXISTS dblink;
+SELECT * FROM dblink('dbname=covid-cns user=postgres password=XXXXX','SELECT id,kit_id FROM participants') AS tb2(id int, kit_id int)
+SELECT * FROM dblink_connect_u('covidcns_web_db', 'dbname=covid-cns user=postgres password=XXXXX')
 
-DROP TABLE IF EXISTS tian CASCADE;
-CREATE TEMP TABLE tian AS SELECT * FROM postgres._item_annotation_df;
-GRANT ALL ON TABLE tian TO "phenodb_coworker";
-SELECT s.* FROM tian s;
+--this does not work either
+CREATE EXTENSION IF NOT EXISTS postgres_fdw;
 
-DROP TABLE IF EXISTS tvan CASCADE;
-CREATE TEMP TABLE tvan AS SELECT * FROM postgres._variable_annotation_df;
-GRANT ALL ON TABLE tvan TO "phenodb_coworker";
-SELECT s.* FROM tvan s;
+CREATE SERVER covidcns_web_db
+FOREIGN DATA WRAPPER postgres_fdw
+OPTIONS (host 'localhost', dbname 'covid-cns', port '5432');
+
+CREATE USER MAPPING FOR postgres
+SERVER covidcns_web_db
+OPTIONS (user 'postgres', password 'XXXXXX');
+
+IMPORT FOREIGN SCHEMA covid_cns
+FROM SERVER covidcns_web_db INTO coh_covidcns;
+
+CREATE OR REPLACE PROCEDURE coh_covidcns.update_from_website_database()
+LANGUAGE plpgsql
+AS $$
+BEGIN
+	-- IMPORT participants
+	
+	SELECT * FROM dblink('dbname=covid-cns','SELECT id, kit_id FROM participants')
+   	AS tb2(id int, kit_id int);
+	
+END;
+$$
 
 
 
---SELECT met.parse_assessment_item_variable_code_from_column_name('ID')
-
---SELECT * FROM met.get_cohortinstance('covidcns','2022');
-  --SELECT * FROM met.get_assessment('covidcnsimpact','1');
-  --SELECT * FROM met.get_cohortstage('covidcns','bl');
-SELECT * FROM coh.prepare_import(
-	cohort_code =>'covidcns',
-	instance_code =>'2022',
-	assessment_code =>'covidcnsimpact',
-	assessment_version_code =>'1',
-	table_name =>'timp',
-	cohort_id_column_name=>'id',
-	varable_annotation_table_name =>'tvan',
-	item_annotation_table_name =>'tian'
-);
-SELECT * FROM t_import_data_meta;
-SELECT * FROM t_import_data_assessment_item_stats;
-SELECT * FROM t_import_data_assessment_item_variable_stats;
-SELECT * FROM t_import_data_assessment_variable_annotation;
-SELECT * FROM t_import_data_assessment_item_annotation;
-
- 
-SELECT * FROM coh.import_data(
- 	cohort_code => 'covidcns',
-	instance_code => '2022',
-	assessment_code => 'covidcnsimpact',
-	assessment_version_code => '1',
-	stage_code => 'bl',
-	table_name => 'timp',
-	do_annotate => FALSE,
-	add_individuals => FALSE,
-	do_insert => FALSE
- );
-  
-SELECT * FROM t_import_data_assessment_variable_annotation;
-SELECT * FROM t_import_data_assessment_item_annotation;
-
-SELECT * FROM coh.import_data(
- 	cohort_code => 'covidcns',
-	instance_code => '2022',
-	assessment_code => 'covidcnsimpact',
-	assessment_version_code => '1',
-	stage_code => 'bl',
-	table_name => 'timp',
-	do_annotate => TRUE,
-	add_individuals => FALSE,
-	do_insert => FALSE
- );
- 
- SELECT * FROM coh.import_data(
- 	cohort_code => 'covidcns',
-	instance_code => '2022',
-	assessment_code => 'covidcnsimpact',
-	assessment_version_code => '1',
-	stage_code => 'bl',
-	table_name => 'timp',
-	do_annotate => FALSE,
-	add_individuals => TRUE,
-	do_insert => FALSE
- );
- 
- SELECT * FROM coh.import_data(
- 	cohort_code => 'covidcns',
-	instance_code => '2022',
-	assessment_code => 'covidcnsimpact',
-	assessment_version_code => '1',
-	stage_code => 'bl',
-	table_name => 'timp',
-	do_annotate => FALSE,
-	add_individuals => FALSE,
-	do_insert => TRUE
- );
-
-SELECT * FROM coh.prepare_import(
-	cohort_code =>'covidcns',
-	instance_code =>'2022',
-	assessment_code =>'cognitronq',
-	assessment_version_code =>'2022',
-	table_name =>'timp',
-	cohort_id_column_name=>'id',
-	varable_annotation_table_name =>'tvan'
-);
-SELECT * FROM t_import_data_meta;
-SELECT * FROM t_import_data_assessment_item_stats;
-SELECT * FROM t_import_data_assessment_item_variable_stats;
-SELECT * FROM t_import_data_assessment_variable_annotation;
-SELECT * FROM t_import_data_assessment_item_annotation;
-
- 
-SELECT * FROM coh.import_data(
- 	cohort_code => 'covidcns',
-	instance_code => '2022',
-	assessment_code => 'cognitronq',
-	assessment_version_code => '2022',
-	stage_code => 'bl',
-	table_name => 'timp',
-	do_annotate => TRUE,
-	add_individuals => TRUE,
-	do_insert => TRUE
- );
-  
-SELECT * FROM t_import_data_assessment_variable_annotation;
-SELECT * FROM t_import_data_assessment_item_annotation;
- 
- /*
- INSERT INTO coh.covidcns_2021_covidcnsdem_1_1(_stage,_user,_time_assessment,_individual_identifier,startdate,enddate,sample,howoldareyounowtxt,dobage) 
- SELECT '1','postgres','2022-01-23 19:13:58.100937+00',src._individual_identifier,"startDate","endDate",sample,howoldareyounowtxt,dobage 
- FROM t_src_individual src WHERE src._individual_identifier IS NOT NULL
- */
- --SELECT * FROM t_import_data_meta WHERE t_import_data_meta.n_table_name='covidcns_2021_covidcnsdem_1_1' AND t_import_data_meta.n_column_name IS NOT NULL
- 
- --SELECT met.construct_cohortinstance_column_name('citem','a')
- --SELECT met.get_cohortinstance_table_index('covidcns','2021','covidcnsdem','1');
- --SELECT coh.create_cohortinstance_table_column('covidcns','2021','covidcnsdem','1','dobage','','double precision');
-
- --SELECT * FROM t_import_data_meta;
- --SELECT * FROM t_import_data_assessment_item_stats;
- --SELECT * FROM t_import_data_assessment_item_variable_stats;
- -- DROP TABLE t_import_data_assessment_item_annotation
--- SELECT * FROM t_import_data_assessment_item_annotation;
---SELECT * FROM t_src_individual;

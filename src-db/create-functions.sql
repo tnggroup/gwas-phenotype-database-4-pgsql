@@ -261,19 +261,25 @@ CREATE OR REPLACE FUNCTION met.get_assessment_item_variables
 (
 	assessment_code met.varcharcodeletnum_lc,
 	assessment_version_code met.varcharcodeletnum_lc,
-	assessment_item_code met.varcharcodeletnum_lc[] DEFAULT ARRAY[]::met.varcharcodeletnum_lc[]
+	assessment_item_code met.varcharcodeletnum_lc[] DEFAULT ARRAY[]::met.varcharcodeletnum_lc[],
+	assessment_variable_code_full met.varcharcodeletnum_lc[] DEFAULT ARRAY[]::met.varcharcodeletnum_lc[],
+	assessment_variable_code_original character varying(100)[] DEFAULT ARRAY[]::character varying(100)[]
 ) RETURNS int[] AS $$
 DECLARE
     toreturn int [] = NULL;
 BEGIN
 	
 	toreturn:=ARRAY(
-		SELECT assessment_item_variable.id FROM 
+		SELECT * FROM 
 		met.assessment_item_variable INNER JOIN met.assessment_item ON assessment_item_variable.assessment_item=assessment_item.id
 		LEFT OUTER JOIN (SELECT UNNEST($3) cassessment_item_code) aic ON aic.cassessment_item_code=assessment_item.item_code
+		LEFT OUTER JOIN (SELECT UNNEST($4) cassessment_variable_code_full) avcf ON avcf.cassessment_variable_code_full=met.construct_cohortinstance_column_name(assessment_item.item_code,assessment_item_variable.variable_code)
+		LEFT OUTER JOIN (SELECT UNNEST($5) cassessment_variable_code_original) avco ON avco.cassessment_variable_code_original=assessment_item_variable.variable_original_descriptor
 		WHERE
 			assessment_item.assessment=met.get_assessment($1,$2)
 		AND ((cardinality($3)<1 AND aic.cassessment_item_code IS NULL) OR aic.cassessment_item_code IS NOT NULL)
+		AND ((cardinality($4)<1 AND avcf.cassessment_variable_code_full IS NULL) OR avcf.cassessment_variable_code_full IS NOT NULL)
+		AND ((cardinality($5)<1 AND avco.cassessment_variable_code_original IS NULL) OR avco.cassessment_variable_code_original IS NOT NULL)
 	);
 	RETURN toreturn;
 END;
@@ -1000,7 +1006,8 @@ SELECT * FROM sec._create_cohortinstance_individual
 );
  */
  
-CREATE OR REPLACE FUNCTION coh._create_current_assessment_item_variable_tview
+
+CREATE OR REPLACE FUNCTION coh._create_current_assessment_item_variable_select_query
 (
 	assessment_item_variable int []
 ) RETURNS text AS $$
@@ -1013,8 +1020,6 @@ DECLARE
     string_query_from text;
     r RECORD;
 BEGIN
-
-	DROP VIEW IF EXISTS t_export_data CASCADE;
 	
 	SELECT ARRAY(SELECT DISTINCT table_name FROM (SELECT UNNEST($1) assessment_item_variable) aiv INNER JOIN met.cohort_inventory ci ON aiv.assessment_item_variable=ci.assessment_item_variable_id ORDER BY table_name) INTO n_table_names;
 		
@@ -1048,6 +1053,26 @@ BEGIN
 	
 	string_query_full:=string_query_full || string_query_columns || ' ' || string_query_from || '; ';
 
+	RETURN string_query_full;
+END;
+$$ LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = coh, pg_temp;
+ALTER FUNCTION coh._create_current_assessment_item_variable_select_query(
+	assessment_item_variable int []
+	)
+  OWNER TO "phenodb_owner";
+
+
+CREATE OR REPLACE FUNCTION coh._create_current_assessment_item_variable_tview
+(
+	assessment_item_variable int []
+) RETURNS text AS $$
+DECLARE
+    string_query_full text:='';
+BEGIN
+	DROP VIEW IF EXISTS t_export_data CASCADE;
+	string_query_full:=coh._create_current_assessment_item_variable_select_query(assessment_item_variable);
 	EXECUTE string_query_full;
 	RETURN string_query_full;
 END;
@@ -1059,9 +1084,10 @@ ALTER FUNCTION coh._create_current_assessment_item_variable_tview(
 	)
   OWNER TO "phenodb_owner";
 
- 
+
  
 --SELECT * FROM coh._create_current_assessment_item_variable_tview(ARRAY[137,138])
+--SELECT * FROM coh._create_current_assessment_item_variable_tview(met.get_assessment_item_variables('covidcnsdem','1',ARRAY['dobage','ethnicorigin']));
 --SELECT * FROM coh._create_current_assessment_item_variable_tview(met.get_assessment_item_variables('covidcnsdem','1',ARRAY['dobage','ethnicorigin'])
 --||
 --met.get_assessment_item_variables('cfq11','covidcns',ARRAY['correctworddifficultfind','feelweakweek','startsincecovid19questionrequi'])
