@@ -16,7 +16,8 @@ AS WITH fi AS (SELECT
 	cohortinstance.id AS cohortinstance_id,
 	assessment.id AS assessment_id,
 	assessment_item.id AS assessment_item_id,
-	assessment_item_variable.id AS assessment_item_variable_id
+	assessment_item_variable.id AS assessment_item_variable_id,
+	assessment_item_variable.variable_original_descriptor
 	FROM fi
 	LEFT OUTER JOIN met.cohort ON fi.cohort_code=cohort.code
 	LEFT OUTER JOIN met.cohortinstance ON fi.instance_code=cohortinstance.code AND cohortinstance.cohort=cohort.id
