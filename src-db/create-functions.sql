@@ -1011,6 +1011,8 @@ SELECT * FROM sec._create_cohortinstance_individual
 
 CREATE OR REPLACE FUNCTION coh._create_current_assessment_item_variable_select_query
 (
+	cohort int,
+	cohortinstance int,
 	assessment_item_variable int []
 ) RETURNS text AS $$
 DECLARE
@@ -1023,7 +1025,7 @@ DECLARE
     r RECORD;
 BEGIN
 	
-	SELECT ARRAY(SELECT DISTINCT table_name FROM (SELECT UNNEST($1) assessment_item_variable) aiv INNER JOIN met.cohort_inventory ci ON aiv.assessment_item_variable=ci.assessment_item_variable_id ORDER BY table_name) INTO n_table_names;
+	SELECT ARRAY(SELECT DISTINCT table_name FROM (SELECT UNNEST($3) assessment_item_variable) aiv INNER JOIN met.cohort_inventory ci ON aiv.assessment_item_variable=ci.assessment_item_variable_id AND $1=ci.cohort_id AND $2=ci.cohortinstance_id ORDER BY table_name) INTO n_table_names;
 		
 	--RAISE NOTICE 'array %',array_length(n_table_names,1);
 	
@@ -1037,7 +1039,7 @@ BEGIN
 	END LOOP;
 	string_query_from:=string_query_from || ') d';
 
-	FOR r IN SELECT ci.* FROM (SELECT UNNEST($1) assessment_item_variable, generate_subscripts($1,1) rn) aiv INNER JOIN met.cohort_inventory ci ON aiv.assessment_item_variable=ci.assessment_item_variable_id ORDER BY aiv.rn
+	FOR r IN SELECT ci.* FROM (SELECT UNNEST($3) assessment_item_variable, generate_subscripts($3,1) rn) aiv INNER JOIN met.cohort_inventory ci ON aiv.assessment_item_variable=ci.assessment_item_variable_id ORDER BY aiv.rn
 	LOOP
 		--RAISE NOTICE 'r.assessment_item_variable_id %',r.assessment_item_variable_id;
 		string_query_columns := string_query_columns || ',q' || r.assessment_item_variable_id || '.' || r.column_name;
@@ -1061,6 +1063,8 @@ $$ LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = coh, pg_temp;
 ALTER FUNCTION coh._create_current_assessment_item_variable_select_query(
+	cohort int,
+	cohortinstance int,
 	assessment_item_variable int []
 	)
   OWNER TO "phenodb_owner";
@@ -1068,13 +1072,15 @@ ALTER FUNCTION coh._create_current_assessment_item_variable_select_query(
 
 CREATE OR REPLACE FUNCTION coh._create_current_assessment_item_variable_tview
 (
+	cohort int,
+	cohortinstance int,
 	assessment_item_variable int []
 ) RETURNS text AS $$
 DECLARE
     string_query_full text:='';
 BEGIN
 	DROP VIEW IF EXISTS t_export_data CASCADE;
-	string_query_full:=coh._create_current_assessment_item_variable_select_query(assessment_item_variable);
+	string_query_full:=coh._create_current_assessment_item_variable_select_query(cohort,cohortinstance,assessment_item_variable);
 	EXECUTE string_query_full;
 	RETURN string_query_full;
 END;
@@ -1082,18 +1088,24 @@ $$ LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = coh, pg_temp;
 ALTER FUNCTION coh._create_current_assessment_item_variable_tview(
+	cohort int,
+	cohortinstance int,
 	assessment_item_variable int []
 	)
   OWNER TO "phenodb_owner";
 
 
  
---SELECT * FROM coh._create_current_assessment_item_variable_tview(ARRAY[137,138])
---SELECT * FROM coh._create_current_assessment_item_variable_tview(met.get_assessment_item_variables('covidcnsdem','1',ARRAY['dobage','ethnicorigin']));
---SELECT * FROM coh._create_current_assessment_item_variable_tview(met.get_assessment_item_variables('covidcnsdem','1',ARRAY['dobage','ethnicorigin'])
+--SELECT * FROM coh._create_current_assessment_item_variable_tview(1,1,ARRAY[137,138])
+--SELECT * FROM coh._create_current_assessment_item_variable_tview(1,1,met.get_assessment_item_variables('covidcnsdem','1',ARRAY['dobage','ethnicorigin']));
+--SELECT * FROM coh._create_current_assessment_item_variable_tview(1,1,met.get_assessment_item_variables('covidcnsdem','1',ARRAY['dobage','ethnicorigin'])
 --||
 --met.get_assessment_item_variables('cfq11','covidcns',ARRAY['correctworddifficultfind','feelweakweek','startsincecovid19questionrequi'])
 --);
+--SELECT * FROM coh._create_current_assessment_item_variable_tview(1,1,met.get_assessment_item_variables(
+--	assessment_code => 'covidcnsdem',
+--	assessment_version_code => '1',
+--	assessment_variable_code_original => ARRAY['dem_1.dob_age','dem_1.irish_numeric']));
 --SELECT * FROM t_export_data
  
  
