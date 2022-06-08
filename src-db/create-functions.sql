@@ -270,7 +270,7 @@ DECLARE
 BEGIN
 	
 	toreturn:=ARRAY(
-		SELECT * FROM 
+		SELECT assessment_item_variable.id FROM 
 		met.assessment_item_variable INNER JOIN met.assessment_item ON assessment_item_variable.assessment_item=assessment_item.id
 		LEFT OUTER JOIN (SELECT UNNEST($3) cassessment_item_code) aic ON aic.cassessment_item_code=assessment_item.item_code
 		LEFT OUTER JOIN (SELECT UNNEST($4) cassessment_variable_code_full) avcf ON avcf.cassessment_variable_code_full=met.construct_cohortinstance_column_name(assessment_item.item_code,assessment_item_variable.variable_code)
@@ -289,7 +289,9 @@ $$ LANGUAGE plpgsql;
 ALTER FUNCTION met.get_assessment_item_variables(
 	assessment_code met.varcharcodeletnum_lc,
 	assessment_version_code met.varcharcodeletnum_lc,
-	assessment_item_code met.varcharcodeletnum_lc[]
+	assessment_item_code met.varcharcodeletnum_lc[],
+	assessment_variable_code_full met.varcharcodeletnum_lc[],
+	assessment_variable_code_original character varying(100)[]
 	)
   OWNER TO "phenodb_coworker";
   
