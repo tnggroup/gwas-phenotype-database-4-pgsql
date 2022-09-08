@@ -4,7 +4,7 @@
 
 CREATE DATABASE phenodb
     WITH 
-    OWNER = postgres			--set to phenodb after creation
+    OWNER = postgres			--set to phenodb after creation (phenodb_owner?)
     TEMPLATE = template0		-- for AWS
     ENCODING = 'UTF8'
     LC_COLLATE = 'C.UTF-8'

@@ -283,7 +283,7 @@ CREATE TABLE met.assessment_item_variable
 (
     id integer NOT NULL GENERATED ALWAYS AS IDENTITY ( INCREMENT 1 START 1 MINVALUE 1 MAXVALUE 2147483647 CACHE 1 ),
     assessment_item integer NOT NULL,
-    variable_code met.varcharcodeletnum_lc NOT NULL,
+    variable_code met.varcharcodeletnum_lc, --NOT NULL,
     variable_original_descriptor character varying(100),
     variable_index met.intoneindex NOT NULL,
 	variable_name character varying,
@@ -304,7 +304,8 @@ CREATE TABLE met.assessment_item_variable
     --CONSTRAINT assessment_item_variable_data_storage_type_fk FOREIGN KEY (variable_data_storage_type) REFERENCES met.data_storage_type(code)
 );
 COMMENT ON TABLE met.assessment_item_variable IS 'Describes variables relating to each assessment item in a cohortinstance extraction and a table column in a corresponding phenotypic data table.';
-CREATE UNIQUE INDEX assessment_item_variable_cohort_assessment_item_variable_descriptor_u ON met.assessment_item_variable (assessment_item,variable_code);
+CREATE UNIQUE INDEX assessment_item_variable_u ON met.assessment_item_variable (assessment_item,variable_code) WHERE variable_code IS NOT NULL;
+CREATE UNIQUE INDEX assessment_item_variable_u2 ON met.assessment_item_variable (assessment_item) WHERE variable_code IS NULL;
 CREATE INDEX assessment_item_variable_i ON met.assessment_item_variable (id,assessment_item,variable_code,variable_index);
 
 -- DROP TABLE met.summary_type;

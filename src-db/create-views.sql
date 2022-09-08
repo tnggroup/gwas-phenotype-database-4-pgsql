@@ -23,7 +23,12 @@ AS WITH fi AS (SELECT
 	LEFT OUTER JOIN met.cohortinstance ON fi.instance_code=cohortinstance.code AND cohortinstance.cohort=cohort.id
 	LEFT OUTER JOIN met.assessment ON fi.assessment_code=assessment.code AND fi.assessment_version_code=assessment.version_code
 	LEFT OUTER JOIN met.assessment_item ON assessment.id=assessment_item.assessment AND fi.assessment_item_code=assessment_item.item_code
-	LEFT OUTER JOIN met.assessment_item_variable ON assessment_item.id=assessment_item_variable.assessment_item AND (fi.assessment_item_variable_code IS NULL OR fi.assessment_item_variable_code = assessment_item_variable.variable_code)
+	LEFT OUTER JOIN met.assessment_item_variable 
+	ON assessment_item.id=assessment_item_variable.assessment_item 
+	AND (
+				fi.assessment_item_variable_code = assessment_item_variable.variable_code 
+				OR (fi.assessment_item_variable_code IS NULL AND assessment_item_variable.variable_code IS NULL)
+			)
 	ORDER BY cohort_code,instance_code,assessment_code,assessment_version_code,assessment_item_code,assessment_item_variable_code;
 
 --SELECT * FROM met.cohort_inventory;

@@ -1,3 +1,7 @@
+/*
+ * Requires the extension fuzzystrmatch
+ */
+
 --DROP FUNCTION met.get_phenotype;
 CREATE OR REPLACE FUNCTION met.get_phenotype
 (
@@ -269,6 +273,10 @@ DECLARE
     toreturn int [] = NULL;
 BEGIN
 	
+	IF assessment_item_code IS NULL THEN assessment_item_code:=ARRAY[]::met.varcharcodeletnum_lc[]; END IF;
+	IF assessment_variable_code_full IS NULL THEN assessment_variable_code_full:=ARRAY[]::met.varcharcodeletnum_lc[]; END IF;
+	IF assessment_variable_code_original IS NULL THEN assessment_variable_code_original:=ARRAY[]::character varying(100)[]; END IF;
+	
 	toreturn:=ARRAY(
 		SELECT assessment_item_variable.id FROM 
 		met.assessment_item_variable INNER JOIN met.assessment_item ON assessment_item_variable.assessment_item=assessment_item.id
@@ -294,7 +302,7 @@ ALTER FUNCTION met.get_assessment_item_variables(
 	assessment_variable_code_original character varying(100)[]
 	)
   OWNER TO "phenodb_coworker";
-  
+
 --SELECT * FROM met.get_assessment_item_variables('covidcnsdem','1',ARRAY['dobage','ethnicorigin']);
 --SELECT * FROM met.get_assessment_item_variables('covidcnsdem','1');
  
@@ -443,7 +451,7 @@ DECLARE
 BEGIN
 	
 	SELECT 1 id INTO nid FROM met.assessment_item_variable
-	WHERE assessment_item_variable.assessment_item=$1 AND assessment_item_variable.variable_code=$2;
+	WHERE assessment_item_variable.assessment_item=$1 AND assessment_item_variable.variable_code=$2 OR ($2 IS NULL AND assessment_item_variable.variable_code IS NULL);
 	
 	IF nid IS NULL
 	THEN
@@ -916,7 +924,8 @@ BEGIN
 	(
 		SELECT 1 assessment_item_variable_id
 		FROM met.cohort_inventory
-		WHERE cohort_inventory.cohortinstance_id=$1 AND cohort_inventory.assessment_id=$2 AND cohort_inventory.assessment_item_code=met.parse_assessment_item_code_from_column_name($3) AND cohort_inventory.assessment_item_variable_code=met.parse_assessment_item_variable_code_from_column_name($3)
+		WHERE cohort_inventory.cohortinstance_id=$1 AND cohort_inventory.assessment_id=$2 AND cohort_inventory.assessment_item_code=met.parse_assessment_item_code_from_column_name($3) 
+			AND (cohort_inventory.assessment_item_variable_code=met.parse_assessment_item_variable_code_from_column_name($3) OR cohort_inventory.assessment_item_variable_code IS NULL AND met.parse_assessment_item_variable_code_from_column_name($3) IS NULL)
 	) THEN
 		toreturn:=TRUE;
 	END IF;
@@ -933,7 +942,8 @@ ALTER FUNCTION met._check_cohortinstance_assessment_item_variable_from_column_na
 	)
   OWNER TO "phenodb_coworker";
   
- --SELECT met._check_cohortinstance_assessment_item_variable_from_column_name(1,1,"item1_variable1")
+ --SELECT met._check_cohortinstance_assessment_item_variable_from_column_name(1,1,'item1_variable1')
+ --SELECT met._check_cohortinstance_assessment_item_variable_from_column_name(1,2,'moneyday')
  
 
 CREATE OR REPLACE FUNCTION sec._create_cohortinstance_individual
@@ -1145,6 +1155,8 @@ BEGIN
 		$6 cohort_id_column_name
 	;
 	GRANT ALL ON TABLE t_prepare_import_data_settings TO "phenodb_coworker";
+	SELECT COUNT(t_prepare_import_data_settings.*) INTO toreturn FROM t_prepare_import_data_settings;
+	RAISE NOTICE 'nrows t_prepare_import_data_settings (THIS SHOULD BE POSITIVE - OTHERWISE YOU MAY HAVE PRIVILEGE OR PATH PROBLEMS) %',toreturn;
 	
 	/*
 	DROP TABLE IF EXISTS t_import_data_cohort_settings CASCADE;
@@ -1183,6 +1195,8 @@ BEGIN
 		*/
 		GRANT ALL ON TABLE t_import_data_assessment_variable_annotation TO "phenodb_coworker";
 	END IF;
+	SELECT COUNT(t_import_data_assessment_variable_annotation.*) INTO toreturn FROM t_import_data_assessment_variable_annotation;
+	RAISE NOTICE 'nrows t_import_data_assessment_variable_annotation (THIS SHOULD BE POSITIVE - OTHERWISE YOU MAY HAVE PRIVILEGE OR PATH PROBLEMS) %',toreturn;
 	
 
 	IF item_annotation_table_name IS NOT NULL
@@ -1197,51 +1211,44 @@ BEGIN
 		*/
 		GRANT ALL ON TABLE t_import_data_assessment_item_annotation TO "phenodb_coworker";
 	END IF;
-	
-	
+
 	--TODO - ADD CUSTOM SCHEMA CHOICE 
 	DROP VIEW IF EXISTS t_import_data_meta CASCADE;
 	CREATE OR REPLACE TEMP VIEW t_import_data_meta AS
-	WITH imp AS (SELECT
-					CASE WHEN vannot.item_code IS NULL THEN met.parse_assessment_item_code_from_column_name(columns."column_name") ELSE LOWER(vannot.item_code) END assessment_item_code,
-					CASE WHEN vannot.variable_code IS NULL THEN met.parse_assessment_item_variable_code_from_column_name(columns."column_name") ELSE LOWER(vannot.variable_code) END assessment_item_variable_code,
-					CASE WHEN vannot.variable_original_descriptor IS NULL THEN columns.column_name ELSE vannot.variable_original_descriptor END assessment_item_variable_original_descriptor,
-				 	--CASE WHEN columns.column_name = ANY(cohort_id_column_name) THEN TRUE ELSE FALSE END cohort_id,
-					(columns.column_name = isettings.cohort_id_column_name) is_cohort_id,
-					--COUNT(icn.id_column_name) > 0 is_cohort_id,
-					columns.table_catalog,
-					columns.table_schema,
-					columns.table_name,
-					tables.table_type,
-					columns.column_name
-				 FROM information_schema.columns
-				 INNER JOIN information_schema.tables ON columns.table_catalog=tables.table_catalog AND columns.table_schema=tables.table_schema AND columns.table_name=tables.table_name
-				 INNER JOIN t_prepare_import_data_settings isettings ON columns.table_name=isettings.table_name
-				 LEFT OUTER JOIN t_import_data_assessment_variable_annotation vannot ON columns.column_name=vannot.column_name
-				WHERE columns.table_catalog='phenodb' AND tables.table_type='LOCAL TEMPORARY'
-				--GROUP BY assessment_item_code,assessment_item_variable_code,columns.table_catalog,columns.table_schema,columns.table_name,tables.table_type,columns.column_name
-				)
 	SELECT
-	imp.assessment_item_code,
-	imp.assessment_item_variable_code,
-	imp.assessment_item_variable_original_descriptor,
-	imp.is_cohort_id,
-	(imp.is_cohort_id OR imp.is_cohort_id) meta, --it should look like this for now - add more conditions when needed
-	inv.table_name n_table_name, inv.column_name n_column_name,
-	--isettings.cohortinstance_id,
-	--isettings.assessment_id,
-	--isettings.cohort_id_column_name,
-	columns.*
-	FROM 
-	imp
-	--LEFT OUTER JOIN t_prepare_import_data_settings s ON TRUE
-	INNER JOIN t_prepare_import_data_settings isettings ON imp.table_name=isettings.table_name
-	LEFT OUTER JOIN met.cohort_inventory inv ON inv.cohortinstance_id=isettings.cohortinstance_id AND inv.assessment_id=isettings.assessment_id AND imp.assessment_item_code=inv.assessment_item_code AND (imp.assessment_item_variable_code = inv.assessment_item_variable_code OR (imp.assessment_item_variable_code IS NULL AND inv.assessment_item_variable_code IS NULL))
-	LEFT OUTER JOIN information_schema.columns ON imp.table_catalog=columns.table_catalog AND imp.table_schema=columns.table_schema AND imp.table_name=columns.table_name AND imp.column_name=columns.column_name;
+		LOWER(van.item_code) assessment_item_code,
+		LOWER(van.variable_code) assessment_item_variable_code,
+		van.variable_original_descriptor,
+		isettings.cohortinstance_id,
+		isettings.assessment_id,
+		inv.table_schema n_table_schema, inv.table_name n_table_name, inv.column_name n_column_name, inv.variable_original_descriptor n_variable_original_descriptor, inv.data_type n_data_type, inv.assessment_item_code n_assessment_item_code, inv.assessment_item_variable_code n_assessment_item_variable_code, inv.assessment_item_variable_id n_assessment_item_variable_id,
+		(columns.column_name = isettings.cohort_id_column_name) is_cohort_id,
+		(van.variable_original_descriptor = inv.variable_original_descriptor OR van.variable_original_descriptor IS NULL OR inv.variable_original_descriptor IS NULL) variable_original_descriptor_check,
+		(columns.data_type = inv.data_type OR inv.data_type IS NULL) data_type_check,
+		columns.*
+	FROM t_import_data_assessment_variable_annotation van
+	INNER JOIN t_prepare_import_data_settings isettings ON TRUE
+	INNER JOIN information_schema.tables ON tables.table_catalog='phenodb' AND tables.table_name=LOWER(isettings.table_name)
+	INNER JOIN pg_namespace ns ON ns.oid = pg_my_temp_schema() AND tables.table_schema = ns.nspname --tables.table_type='LOCAL TEMPORARY'
+	INNER JOIN information_schema.columns ON columns.table_catalog=tables.table_catalog AND columns.table_schema=tables.table_schema AND columns.table_name=tables.table_name AND columns.column_name=LOWER(van.column_name)
+	LEFT OUTER JOIN met.cohort_inventory inv ON inv.cohortinstance_id=isettings.cohortinstance_id AND inv.assessment_id=isettings.assessment_id AND LOWER(van.item_code)=inv.assessment_item_code AND (LOWER(van.variable_code) = inv.assessment_item_variable_code OR (van.variable_code IS NULL AND inv.assessment_item_variable_code IS NULL))
+	ORDER BY assessment_id,cohortinstance_id,assessment_item_code,assessment_item_variable_code;
 	GRANT SELECT ON t_import_data_meta TO "phenodb_coworker";
-	
 	SELECT COUNT(t_import_data_meta.*) INTO toreturn FROM t_import_data_meta;
-	RAISE NOTICE 'nrows %',toreturn;
+	RAISE NOTICE 'nrows t_import_data_meta (THIS SHOULD BE POSITIVE - OTHERWISE YOU MAY HAVE PRIVILEGE OR PATH PROBLEMS) %',toreturn;
+	
+	--TODO: The duplicate ordering is fishy
+	DROP VIEW IF EXISTS t_import_data_meta_selected CASCADE;
+	CREATE OR REPLACE TEMP VIEW t_import_data_meta_selected AS
+	WITH mord AS(SELECT * FROM t_import_data_meta ORDER BY data_type_check DESC, variable_original_descriptor_check DESC, ordinal_position)
+	SELECT DISTINCT ON (mord.assessment_item_code, mord.assessment_item_variable_code, mord.column_name)
+		mord.*,
+		(mord.is_cohort_id OR mord.is_cohort_id) meta --check for meta-type columns, it should look like this for now - add more conditions when needed
+	FROM mord
+	ORDER BY assessment_item_code,assessment_item_variable_code, column_name;
+	GRANT SELECT ON t_import_data_meta_selected TO "phenodb_coworker";
+	SELECT COUNT(t_import_data_meta_selected.*) INTO toreturn FROM t_import_data_meta_selected;
+	RAISE NOTICE 'nrows t_import_data_meta_selected (THIS SHOULD BE POSITIVE - OTHERWISE YOU MAY HAVE PRIVILEGE OR PATH PROBLEMS) %',toreturn;
 	
 	CREATE OR REPLACE TEMP VIEW t_import_data_assessment_item_stats AS
 	SELECT
@@ -1253,7 +1260,7 @@ BEGIN
 	COUNT(CASE WHEN m.data_type IN ('text','character varying','character') THEN assessment_item_variable_code END) count_datatype_text,
 	COUNT(CASE WHEN m.data_type IN ('boolean') THEN assessment_item_variable_code END) count_datatype_boolean,
 	COUNT(CASE WHEN m.data_type IN ('timestamp','timestamp with time zone','time') THEN assessment_item_variable_code END) count_datatype_time
-	FROM t_import_data_meta m
+	FROM t_import_data_meta_selected m
 	WHERE m.meta = FALSE
 	GROUP BY m.assessment_item_code
 	ORDER BY m.assessment_item_code;
@@ -1263,11 +1270,11 @@ BEGIN
 	SELECT
 	m.assessment_item_code,
 	m.assessment_item_variable_code,
-	m.assessment_item_variable_original_descriptor,
+	m.variable_original_descriptor,
 	m.column_name,
 	m.data_type,
 	(m.n_column_name IS NOT NULL) annotated
-	FROM t_import_data_meta m
+	FROM t_import_data_meta_selected m
 	WHERE m.meta = FALSE
 	ORDER BY assessment_item_code, assessment_item_variable_code;
 	GRANT SELECT ON t_import_data_assessment_item_variable_stats TO "phenodb_coworker";
@@ -1354,15 +1361,15 @@ BEGIN
 	RAISE NOTICE 'var_cohortstage_id %',var_cohortstage_id;
 	
 	--data-individual view
-	SELECT ARRAY(SELECT column_name FROM t_import_data_meta WHERE t_import_data_meta.is_cohort_id =TRUE ORDER BY t_import_data_meta.ordinal_position) INTO cohort_id_columns;
+	SELECT ARRAY(SELECT column_name FROM t_import_data_meta_selected WHERE t_import_data_meta_selected.is_cohort_id =TRUE ORDER BY t_import_data_meta_selected.ordinal_position) INTO cohort_id_columns;
 	c_cohort_id_column:=cohort_id_columns[1];
 	
 	string_query := 'CREATE OR REPLACE TEMP VIEW t_src_individual AS SELECT src.*, src."' || c_cohort_id_column || '" _spid, ici.identifier _individual_identifier FROM ' || table_name || ' src ' || ' LEFT OUTER JOIN sec.individual_cohortinstance_identifier ici ON (src."' || c_cohort_id_column || '"=ici.identifier_cohort OR src."' || c_cohort_id_column || '"=ici.identifier::text) AND ici.cohortinstance=' || var_cohortinstance_id || ' LEFT OUTER JOIN sec.individual i ON ici.individual=i.id';
 	RAISE NOTICE 'Q: %',string_query;
 	EXECUTE string_query;
 
-	--fallback/template annotation - --TODO - SEPARATE THE ANNOTATIN TABLES FROM THE STATS-VIEWS!
-	IF NOT EXISTS (SELECT * FROM information_schema.tables WHERE tables.table_catalog='phenodb' AND tables.table_type='LOCAL_TEMPORARY' AND tables.table_name='t_import_data_assessment_item_annotation') -- AND NOT EXISTS (SELECT FROM t_import_data_assessment_item_annotation)
+	--fallback/template annotation - --TODO - SEPARATE THE ANNOTATION TABLES FROM THE STATS-VIEWS!
+	IF NOT EXISTS (SELECT * FROM information_schema.tables WHERE tables.table_catalog='phenodb' AND tables.table_name='t_import_data_assessment_item_annotation') -- AND tables.table_type='LOCAL_TEMPORARY' AND NOT EXISTS (SELECT FROM t_import_data_assessment_item_annotation)
 	THEN
 		DROP TABLE IF EXISTS t_import_data_assessment_item_annotation CASCADE;
 		CREATE TEMP TABLE t_import_data_assessment_item_annotation AS
@@ -1381,7 +1388,7 @@ BEGIN
 		GRANT ALL ON TABLE t_import_data_assessment_item_annotation TO "phenodb_coworker";
 	END IF;
 	
-	IF do_annotate = FALSE AND EXISTS (SELECT 1 n_column_name FROM t_import_data_meta WHERE t_import_data_meta.n_column_name IS NULL AND t_import_data_meta.meta IS FALSE)
+	IF do_annotate = FALSE AND EXISTS (SELECT 1 n_column_name FROM t_import_data_meta_selected WHERE t_import_data_meta_selected.n_column_name IS NULL AND t_import_data_meta_selected.meta IS FALSE)
 	THEN
 		RAISE NOTICE 'Unknown columns present in the imported data.'
       		USING HINT = 'Please add and annotate all assessment item variables that are to be imported into the database.';
@@ -1457,7 +1464,7 @@ BEGIN
 
 	IF do_insert
 	THEN
-		SELECT ARRAY(SELECT DISTINCT n_table_name FROM t_import_data_meta WHERE t_import_data_meta.meta =FALSE) INTO n_table_names;
+		SELECT ARRAY(SELECT DISTINCT n_table_name FROM t_import_data_meta_selected WHERE t_import_data_meta_selected.meta =FALSE) INTO n_table_names;
 		
 
 		RAISE NOTICE 'array %',array_length(n_table_names,1);
@@ -1472,7 +1479,7 @@ BEGIN
 			string_source_column_names:=string_source_column_names || ','  || E'\'' || now() || E'\''; 
 			string_source_column_names:=string_source_column_names || ',src._individual_identifier';
 
-			FOR r IN SELECT * FROM t_import_data_meta WHERE t_import_data_meta.n_table_name=c_n_table_name AND t_import_data_meta.n_column_name IS NOT NULL
+			FOR r IN SELECT * FROM t_import_data_meta_selected WHERE t_import_data_meta_selected.n_table_name=c_n_table_name AND t_import_data_meta_selected.n_column_name IS NOT NULL
 			LOOP
 				string_target_column_names:=string_target_column_names || ',' || r.n_column_name;
 				string_source_column_names:=string_source_column_names || ',"' || r.column_name || '"';
@@ -1521,6 +1528,7 @@ ALTER FUNCTION coh.import_data(
  );
  */
  --SELECT * FROM t_import_data_meta;
+ --SELECT * FROM t_import_data_meta_selected;
  --SELECT * FROM t_import_data_assessment_item_stats;
  --SELECT * FROM t_import_data_assessment_item_variable_stats;
  -- DROP TABLE t_import_data_assessment_item_annotation
