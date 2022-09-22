@@ -1365,7 +1365,7 @@ BEGIN
 	c_cohort_id_column:=cohort_id_columns[1];
 	
 	string_query := 'CREATE OR REPLACE TEMP VIEW t_src_individual AS SELECT src.*, src."' || c_cohort_id_column || '" _spid, ici.identifier _individual_identifier FROM ' || table_name || ' src ' || ' LEFT OUTER JOIN sec.individual_cohortinstance_identifier ici ON (src."' || c_cohort_id_column || '"=ici.identifier_cohort OR src."' || c_cohort_id_column || '"=ici.identifier::text) AND ici.cohortinstance=' || var_cohortinstance_id || ' LEFT OUTER JOIN sec.individual i ON ici.individual=i.id';
-	RAISE NOTICE 'Q: %',string_query;
+	--RAISE NOTICE 'Q: %',string_query;
 	EXECUTE string_query;
 
 	--fallback/template annotation - --TODO - SEPARATE THE ANNOTATION TABLES FROM THE STATS-VIEWS!
@@ -1440,7 +1440,7 @@ BEGIN
 				variable_code => CASE 
 									WHEN r.assessment_item_variable_code IS NULL THEN ''
 									ELSE CAST(r.assessment_item_variable_code AS met.varcharcodesimple_lc) END,
-				variable_original_descriptor => CAST(r.assessment_item_variable_original_descriptor AS character varying),
+				variable_original_descriptor => CAST(r.variable_original_descriptor AS character varying),
 				variable_index => CAST(1 AS int),
 				variable_name => CAST(r.assessment_item_variable_code AS character varying)
 			);
@@ -1491,6 +1491,9 @@ BEGIN
 			EXECUTE string_query;
 		END LOOP;
 	END IF;
+
+	--CLEANUP!! this was still connected to the temporary import tables
+	DROP VIEW IF EXISTS t_src_individual;
 	
 	RETURN 1;
 END;
