@@ -11,13 +11,21 @@ AS WITH fi AS (SELECT
 				columns.*
 				FROM information_schema.columns where table_catalog='phenodb' AND table_schema='coh'
 			   )
-	SELECT fi.*,
+	SELECT
+	--fi.cohort_code,
+	--fi.instance_code,
+	--fi.assessment_code,
+	--fi.assessment_version_code,
+	--fi.table_index,
+	--fi.assessment_item_code,
+	--fi.assessment_item_variable_code,
 	cohort.id AS cohort_id,
 	cohortinstance.id AS cohortinstance_id,
 	assessment.id AS assessment_id,
 	assessment_item.id AS assessment_item_id,
 	assessment_item_variable.id AS assessment_item_variable_id,
-	assessment_item_variable.variable_original_descriptor
+	assessment_item_variable.variable_original_descriptor,
+	fi.*
 	FROM fi
 	LEFT OUTER JOIN met.cohort ON fi.cohort_code=cohort.code
 	LEFT OUTER JOIN met.cohortinstance ON fi.instance_code=cohortinstance.code AND cohortinstance.cohort=cohort.id
@@ -26,8 +34,8 @@ AS WITH fi AS (SELECT
 	LEFT OUTER JOIN met.assessment_item_variable 
 	ON assessment_item.id=assessment_item_variable.assessment_item 
 	AND (
-				fi.assessment_item_variable_code = assessment_item_variable.variable_code 
-				OR (fi.assessment_item_variable_code IS NULL AND assessment_item_variable.variable_code IS NULL)
+				COALESCE(fi.assessment_item_variable_code,'') = COALESCE(assessment_item_variable.variable_code,'') 
+				--OR (fi.assessment_item_variable_code IS NULL AND assessment_item_variable.variable_code IS NULL)
 			)
 	ORDER BY cohort_code,instance_code,assessment_code,assessment_version_code,assessment_item_code,assessment_item_variable_code;
 
