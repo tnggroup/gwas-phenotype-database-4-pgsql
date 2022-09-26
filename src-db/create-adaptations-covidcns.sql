@@ -109,30 +109,12 @@ SELECT met.create_assessment_ignoresert(
 	);
 */
 
--- private import routines for covidcns web database
-
-
---HERE!!!
---DOES NOT WORK!!!!
-SELECT * FROM coh._create_current_assessment_item_variable_tview(
-	met.get_cohort('covidcns'),
-	met.get_cohortinstance('covidcns','2022'),
-	met.get_assessment_item_variables(
-assessment_code => 'covidcnsdem',
-assessment_version_code => '1',
-assessment_item_code => NULL,
-assessment_variable_code_full => NULL,
-assessment_variable_code_original => NULL
-	)
-);
-SELECT * FROM t_export_data
---because of multiple variable ids here - error in the inventory joins?
-SELECT ci.* FROM (SELECT UNNEST(met.get_assessment_item_variables('covidcnsdem','1')) assessment_item_variable, generate_subscripts(met.get_assessment_item_variables('covidcnsdem','1'),1) rn) aiv INNER JOIN met.cohort_inventory ci ON aiv.assessment_item_variable=ci.assessment_item_variable_id ORDER BY aiv.rn
 
 
 
 
 
+/*
 --this does not work
 CREATE EXTENSION IF NOT EXISTS dblink;
 SELECT * FROM dblink('dbname=covid-cns user=postgres password=XXXXX','SELECT id,kit_id FROM participants') AS tb2(id int, kit_id int)
@@ -163,6 +145,6 @@ BEGIN
 	
 END;
 $$
-
+*/
 
 

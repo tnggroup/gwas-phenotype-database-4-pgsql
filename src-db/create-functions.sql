@@ -288,6 +288,7 @@ BEGIN
 		AND ((cardinality($3)<1 AND aic.cassessment_item_code IS NULL) OR aic.cassessment_item_code IS NOT NULL)
 		AND ((cardinality($4)<1 AND avcf.cassessment_variable_code_full IS NULL) OR avcf.cassessment_variable_code_full IS NOT NULL)
 		AND ((cardinality($5)<1 AND avco.cassessment_variable_code_original IS NULL) OR avco.cassessment_variable_code_original IS NOT NULL)
+		ORDER BY assessment_item.item_code, assessment_item_variable.variable_code, assessment_item_variable.id
 	);
 	RETURN toreturn;
 END;
@@ -1091,7 +1092,9 @@ DECLARE
 BEGIN
 	DROP VIEW IF EXISTS t_export_data CASCADE;
 	string_query_full:=coh._create_current_assessment_item_variable_select_query(cohort,cohortinstance,assessment_item_variable);
+	--RAISE NOTICE 'string_query_full: %',string_query_full;	
 	EXECUTE string_query_full;
+	GRANT SELECT ON t_export_data TO "phenodb_coworker";
 	RETURN string_query_full;
 END;
 $$ LANGUAGE plpgsql
@@ -1117,6 +1120,57 @@ ALTER FUNCTION coh._create_current_assessment_item_variable_tview(
 --	assessment_version_code => '1',
 --	assessment_variable_code_original => ARRAY['dem_1.dob_age','dem_1.irish_numeric']));
 --SELECT * FROM t_export_data
+ 
+CREATE OR REPLACE FUNCTION coh.create_current_assessment_item_variable_tview
+(
+	cohort_code met.varcharcodeletnum_lc,
+	instance_code met.varcharcodeletnum_lc,
+	assessment_code met.varcharcodeletnum_lc,
+	assessment_version_code met.varcharcodeletnum_lc,
+	assessment_item_code met.varcharcodeletnum_lc[] DEFAULT NULL,
+	assessment_variable_code_full met.varcharcodeletnum_lc[] DEFAULT NULL,
+	assessment_variable_code_original character varying(100)[] DEFAULT NULL
+) RETURNS text AS $$
+DECLARE
+    string_query_full text:='';
+BEGIN
+	string_query_full := coh._create_current_assessment_item_variable_tview(
+		met.get_cohort($1),
+		met.get_cohortinstance($1,$2),
+		met.get_assessment_item_variables(
+			assessment_code => $3,
+			assessment_version_code => $4,
+			assessment_item_code => $5,
+			assessment_variable_code_full => $6,
+			assessment_variable_code_original => $7
+				)
+	);
+	RETURN string_query_full;
+END;
+$$ LANGUAGE plpgsql;
+--SECURITY DEFINER
+--SET search_path = met, pg_temp;
+ALTER FUNCTION coh.create_current_assessment_item_variable_tview(
+	cohort_code met.varcharcodeletnum_lc,
+	instance_code met.varcharcodeletnum_lc,
+	assessment_code met.varcharcodeletnum_lc,
+	assessment_version_code met.varcharcodeletnum_lc,
+	assessment_item_code met.varcharcodeletnum_lc[],
+	assessment_variable_code_full met.varcharcodeletnum_lc[],
+	assessment_variable_code_original character varying(100)[]
+	)
+  OWNER TO "phenodb_coworker";
+ 
+--SELECT * FROM coh.create_current_assessment_item_variable_tview(
+--	cohort_code => 'covidcns',
+--	instance_code => '2022',
+--	assessment_code => 'covidcnsdem',
+--	assessment_version_code => '1',
+--	assessment_item_code => ARRAY['followingqualificationsdoyou','ethnicorigin']
+--	--assessment_variable_code_full => NULL,
+--	--assessment_variable_code_original => NULL
+--);
+--SELECT * FROM t_export_data;
  
  
 
