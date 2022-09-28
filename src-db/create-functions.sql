@@ -1094,7 +1094,7 @@ BEGIN
 	string_query_full:=coh._create_current_assessment_item_variable_select_query(cohort,cohortinstance,assessment_item_variable);
 	--RAISE NOTICE 'string_query_full: %',string_query_full;	
 	EXECUTE string_query_full;
-	GRANT SELECT ON t_export_data TO "phenodb_coworker";
+	GRANT SELECT ON t_export_data TO "phenodb_reader";
 	RETURN string_query_full;
 END;
 $$ LANGUAGE plpgsql

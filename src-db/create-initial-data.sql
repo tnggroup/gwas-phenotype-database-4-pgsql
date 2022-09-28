@@ -74,6 +74,9 @@ INSERT INTO met.assessment_type(code,name,documentation) VALUES('probe','Probe',
 
 INSERT INTO met.assessment_item_type(assessment_type,code,name,abbreviation,documentation) VALUES('questionnaire','single','Single','Single','A single-coded item. Can have choices to choose from and an <quote>other<unquote> type text entry attached.' );
 INSERT INTO met.assessment_item_type(assessment_type,code,name,abbreviation,documentation) VALUES('questionnaire','multi','Multi','Multi','A multi-coded item. Can have choices to choose from and an <quote>other<unquote> type text entry attached to either of the multiple choices.' );
+INSERT INTO met.assessment_item_type(assessment_type,code,name,abbreviation,documentation) VALUES('interview','single','Single','Single','A single-coded item. Can have choices to choose from and an <quote>other<unquote> type text entry attached.' );
+INSERT INTO met.assessment_item_type(assessment_type,code,name,abbreviation,documentation) VALUES('interview','multi','Multi','Multi','A multi-coded item. Can have choices to choose from and an <quote>other<unquote> type text entry attached to either of the multiple choices.' );
+
 
 INSERT INTO met.summary_type(code,name,documentation) VALUES('phenotype_population_prevalence','Phenotype population prevalence','Population prevalence estimates for phenotypes.' );
 INSERT INTO met.summary_type(code,name,documentation) VALUES('gwas_summary_statistic','GWAS summary statistic','Genome-wide association study summary statistics.' );
