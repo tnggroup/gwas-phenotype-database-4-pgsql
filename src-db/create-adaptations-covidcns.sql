@@ -34,6 +34,52 @@ SELECT met.create_assessment_ignoresert(
 	documentation => ''
 	);
 
+--Baseline
+
+SELECT met.create_assessment_ignoresert(
+	assessment_type =>'questionnaire',
+	assessment_code => 'covidcnsals',
+	assessment_version_code => '1',
+	name => 'COVID-CNS ALS Limb Weakness',
+	abbreviation => 'ALS',
+	reference_id => met.get_reference_by_doi('10.1136/bmj.m3871'), --NEEDS REFERENCE
+	documentation => ''
+	);
+
+INSERT INTO met.reference(doi,pmid,year,documentation) VALUES('10.1001/jama.252.14.1905','6471323',1984,'Detecting alcoholism. The CAGE questionnaire');
+SELECT met.create_assessment_ignoresert(
+	assessment_type =>'questionnaire',
+	assessment_code => 'cage',
+	assessment_version_code => 'covidcns',
+	name => 'COVID-CNS Alcohol CAGE',
+	abbreviation => 'CAGE',
+	reference_id => met.get_reference_by_doi('10.1001/jama.252.14.1905'),
+	documentation => ''
+	);
+
+SELECT met.create_assessment_ignoresert(
+	assessment_type =>'questionnaire',
+	assessment_code => 'rogers',
+	assessment_version_code => '1',
+	name => 'Rogers Self-Assessed Catatonia Scale',
+	abbreviation => 'ROGERS',
+	reference_id => met.get_reference_by_doi('10.1136/bmj.m3871'), --NEEDS REFERENCE
+	documentation => ''
+	);
+
+INSERT INTO met.reference(doi,pmid,year,documentation) VALUES('10.1093/occmed/kqu168','25559796',2015,'The Chalder Fatigue Scale (CFQ 11)');
+SELECT met.create_assessment_ignoresert(
+	assessment_type =>'questionnaire',
+	assessment_code => 'cfq11',
+	assessment_version_code => 'covidcns',
+	name => 'COVID-CNS The Chalder Fatigue Scale',
+	abbreviation => 'CFQ 11',
+	reference_id => met.get_reference_by_doi('10.1093/occmed/kqu168'),
+	documentation => ''
+	);
+
+
+
 SELECT met.create_assessment_ignoresert(
 	assessment_type =>'questionnaire',
 	assessment_code => 'covidcnsdem',
@@ -43,6 +89,132 @@ SELECT met.create_assessment_ignoresert(
 	reference_id => met.get_reference_by_doi('10.1136/bmj.m3871'),
 	documentation => 'Contains both demographics blocks.'
 	);
+
+SELECT met.create_assessment_ignoresert(
+	assessment_type =>'questionnaire',
+	assessment_code => 'covidcnsfacial',
+	assessment_version_code => '1',
+	name => 'COVID-CNS facial weakness questionnaire',
+	abbreviation => 'FACIAL',
+	reference_id => met.get_reference_by_doi('10.1136/bmj.m3871'), --NEEDS REFERENCE
+	documentation => ''
+	);
+
+SELECT met.create_assessment_ignoresert(
+	assessment_type =>'questionnaire',
+	assessment_code => 'covidcnsfam',
+	assessment_version_code => '1',
+	name => 'COVID-CNS family history questionnaire',
+	abbreviation => 'FAM',
+	reference_id => met.get_reference_by_doi('10.1136/bmj.m3871'), --NEEDS REFERENCE
+	documentation => ''
+	);
+
+INSERT INTO met.reference(doi,pmid,year,documentation) VALUES('10.1001/archinte.166.10.1092','16717171',2006,'A brief measure for assessing generalized anxiety disorder: the GAD-7');
+SELECT met.create_assessment_ignoresert(
+	assessment_type =>'questionnaire',
+	assessment_code => 'gad7',
+	assessment_version_code => '1',
+	name => 'A brief measure for assessing generalized anxiety disorder: the GAD-7',
+	abbreviation => 'GAD-7',
+	reference_id => met.get_reference_by_doi('10.1001/archinte.166.10.1092'),
+	documentation => ''
+	);
+
+SELECT met.create_assessment_ignoresert(
+	assessment_type =>'questionnaire',
+	assessment_code => 'covidcnsimpact',
+	assessment_version_code => '1',
+	name => 'COVID-CNS Impact of COVID',
+	abbreviation => 'IMPACT',
+	reference_id => met.get_reference_by_doi('10.1136/bmj.m3871'),
+	documentation => ''
+	);
+
+SELECT met.create_assessment_ignoresert(
+	assessment_type =>'questionnaire',
+	assessment_code => 'covidcnsmhd',
+	assessment_version_code => '1',
+	name => 'COVID-CNS Mental Health History',
+	abbreviation => 'MHD',
+	reference_id => met.get_reference_by_doi('10.1136/bmj.m3871'),
+	documentation => ''
+	);
+
+SELECT met.create_assessment_ignoresert(
+	assessment_type =>'questionnaire',
+	assessment_code => 'covidcnsnonmotor',
+	assessment_version_code => '1',
+	name => 'COVID-CNS General Neuro Non-Motor Symptoms',
+	abbreviation => 'NONMOTOR',
+	reference_id => met.get_reference_by_doi('10.1136/bmj.m3871'),
+	documentation => ''
+	);
+
+INSERT INTO met.reference(doi,pmid,year,documentation) VALUES('10.1002/jts.22059','26606250',2015,'The Posttraumatic Stress Disorder Checklist for DSM-5 (PCL-5): Development and Initial Psychometric Evaluation');
+SELECT met.create_assessment_ignoresert(
+	assessment_type =>'questionnaire',
+	assessment_code => 'pcl5',
+	assessment_version_code => '1',
+	name => 'The Posttraumatic Stress Disorder Checklist for DSM-5',
+	abbreviation => 'PCL-5',
+	reference_id => met.get_reference_by_doi('10.1002/jts.22059'),
+	documentation => ''
+	);
+
+INSERT INTO met.reference(doi,pmid,year,documentation) VALUES('10.1046/j.1525-1497.2001.016009606.x','11556941',2001,'The PHQ-9: validity of a brief depression severity measure');
+SELECT met.create_assessment_ignoresert(
+	assessment_type =>'questionnaire',
+	assessment_code => 'phq9',
+	assessment_version_code => '1',
+	name => 'The Patient Health Questionnaire, depression module',
+	abbreviation => 'PHQ-9',
+	reference_id => met.get_reference_by_doi('10.1046/j.1525-1497.2001.016009606.x'),
+	documentation => ''
+	);
+
+
+SELECT met.create_assessment_ignoresert(
+	assessment_type =>'questionnaire',
+	assessment_code => 'covidcnssmelltaste',
+	assessment_version_code => '1',
+	name => 'COVID-CNS Sense of smell and taste',
+	abbreviation => 'SMELLTASTE',
+	reference_id => met.get_reference_by_doi('10.1136/bmj.m3871'),
+	documentation => ''
+	);
+
+SELECT met.create_assessment_ignoresert(
+	assessment_type =>'questionnaire',
+	assessment_code => 'covidcnstrauma',
+	assessment_version_code => '1',
+	name => 'COVID-CNS Trauma section',
+	abbreviation => 'TRAUMA',
+	reference_id => met.get_reference_by_doi('10.1136/bmj.m3871'),
+	documentation => ''
+	);
+
+INSERT INTO met.reference(doi,pmid,year,documentation) VALUES('10.1002/mds.10473','12815652',2003,'The Unified Parkinson''s Disease Rating Scale (UPDRS): status and recommendations');
+SELECT met.create_assessment_ignoresert(
+	assessment_type =>'questionnaire',
+	assessment_code => 'updrs',
+	assessment_version_code => 'covidcns',
+	name => 'The Unified Parkinson''s Disease Rating Scale',
+	abbreviation => 'UPDRS',
+	reference_id => met.get_reference_by_doi('10.1002/mds.10473'),
+	documentation => ''
+	);
+
+SELECT met.create_assessment_ignoresert(
+	assessment_type =>'questionnaire',
+	assessment_code => 'covidcnsvaccine',
+	assessment_version_code => '1',
+	name => 'COVID-CNS Vaccine questionnaire',
+	abbreviation => 'VACCINE',
+	reference_id => met.get_reference_by_doi('10.1136/bmj.m3871'),
+	documentation => ''
+	);
+
 
 SELECT met.create_assessment_ignoresert(
 	assessment_type =>'questionnaire',
@@ -65,37 +237,11 @@ SELECT met.create_assessment_ignoresert(
 	);
 
 /*
-SELECT met.create_assessment_ignoresert(
-	assessment_type =>'questionnaire',
-	assessment_code => 'covidcnsimpact',
-	assessment_version_code => '1',
-	name => 'COVID-CNS Impact of COVID',
-	abbreviation => 'IMPACT',
-	reference_id => met.get_reference_by_doi('10.1136/bmj.m3871'),
-	documentation => ''
-	);
 
-INSERT INTO met.reference(doi,pmid,year,documentation) VALUES('10.1001/jama.252.14.1905','6471323',1984,'Detecting alcoholism. The CAGE questionnaire');
-SELECT met.create_assessment_ignoresert(
-	assessment_type =>'questionnaire',
-	assessment_code => 'cage',
-	assessment_version_code => 'covidcns',
-	name => 'Alcohol CAGE',
-	abbreviation => 'CAGE',
-	reference_id => met.get_reference_by_doi('10.1001/jama.252.14.1905'),
-	documentation => ''
-	);
 
-INSERT INTO met.reference(doi,pmid,year,documentation) VALUES('10.1093/occmed/kqu168','25559796',2015,'The Chalder Fatigue Scale (CFQ 11)');
-SELECT met.create_assessment_ignoresert(
-	assessment_type =>'questionnaire',
-	assessment_code => 'cfq11',
-	assessment_version_code => 'covidcns',
-	name => 'The Chalder Fatigue Scale',
-	abbreviation => 'CFQ 11',
-	reference_id => met.get_reference_by_doi('10.1093/occmed/kqu168'),
-	documentation => ''
-	);
+
+
+
 
 INSERT INTO met.reference(doi,pmid,year,documentation) VALUES('10.21203/rs.3.pex-1085/v1',NULL,2020,'Great British Intelligence Test Protocol');
 SELECT met.create_assessment_ignoresert(

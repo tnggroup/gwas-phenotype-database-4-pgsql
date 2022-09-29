@@ -284,7 +284,7 @@ CREATE TABLE met.assessment_item_variable
     id integer NOT NULL GENERATED ALWAYS AS IDENTITY ( INCREMENT 1 START 1 MINVALUE 1 MAXVALUE 2147483647 CACHE 1 ),
     assessment_item integer NOT NULL,
     variable_code met.varcharcodeletnum_lc, --NOT NULL,
-    variable_original_descriptor character varying(100),
+    variable_original_descriptor character varying(300),
     variable_index met.intoneindex NOT NULL,
 	variable_name character varying,
 	variable_text character varying,
