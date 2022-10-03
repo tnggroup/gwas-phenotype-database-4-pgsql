@@ -19,8 +19,9 @@ COMMENT ON SCHEMA coh_covidcns
 
 INSERT INTO met.cohort(code,name,abbreviation,data_collection_country,primary_targeted_phenotype,data_collection_sex,documentation) VALUES('covidcns','The COVID-19 Clinical Neuroscience Study','COVID-CNS','gb',1,'mix','The COVID-CNS cohort. To be updated.');
 INSERT INTO met.reference(doi,pmid,year,documentation) VALUES('10.1136/bmj.m3871','33051183',2020,'Neuropsychiatric complications of covid-19');
-INSERT INTO met.reference(doi,pmid,year,documentation) VALUES('10.1016/S0140-6736(74)91639-0','4136544',1974,'ASSESSMENT OF COMA AND IMPAIRED CONSCIOUSNESS: A Practical Scale');
 INSERT INTO met.cohortstage(code,cohort,name,abbreviation,order_index) VALUES('bl',met.get_cohort('covidcns'),'Baseline','BL',0);
+INSERT INTO met.cohortstage(code,cohort,name,abbreviation,order_index) VALUES('blinp',met.get_cohort('covidcns'),'Baseline, inpatients only','BL INP',0);
+INSERT INTO met.cohortstage(code,cohort,name,abbreviation,order_index) VALUES('bloutp',met.get_cohort('covidcns'),'Baseline, outpatients only','BL OUTP',0);
 INSERT INTO met.cohortinstance(code,cohort,name,abbreviation,reference) VALUES('2022',met.get_cohort('covidcns'),'First extraction in 2022','2022',met.get_reference_by_doi('10.1136/bmj.m3871'));
 INSERT INTO met.assessment_item_type(assessment_type,code,name,abbreviation,documentation) VALUES('imaging','idp','Imaging-Derived Phenotype','IDP','Measurements based on imaging derived and QC metrics.');
 
@@ -215,6 +216,58 @@ SELECT met.create_assessment_ignoresert(
 	documentation => ''
 	);
 
+SELECT met.create_assessment_ignoresert(
+	assessment_type =>'cognitive',
+	assessment_code => 'covidcnsna',
+	assessment_version_code => '1',
+	name => 'COVID-CNS Clinical neurological assessment',
+	abbreviation => 'CLINICAL NA',
+	reference_id => met.get_reference_by_doi('10.1136/bmj.m3871'), -- NEEDS REFERENCE?
+	documentation => ''
+	);
+
+INSERT INTO met.reference(doi,pmid,year,documentation) VALUES('10.1093/ageing/afu021','24590568',2014,'Validation of the 4AT, a new instrument for rapid delirium screening: a study in 234 hospitalised older people');
+SELECT met.create_assessment_ignoresert(
+	assessment_type =>'interview',
+	assessment_code => '4at',
+	assessment_version_code => '1',
+	name => '4 ‘A’s Test',
+	abbreviation => '4AT',
+	reference_id => met.get_reference_by_doi('10.1093/ageing/afu021'),
+	documentation => ''
+	);
+
+INSERT INTO met.reference(doi,pmid,year,documentation) VALUES('10.1016/S0140-6736(74)91639-0','4136544',1974,'ASSESSMENT OF COMA AND IMPAIRED CONSCIOUSNESS: A Practical Scale');
+SELECT met.create_assessment_ignoresert(
+	assessment_type =>'interview',
+	assessment_code => 'gcs',
+	assessment_version_code => '1',
+	name => 'Glasgow Coma Scale',
+	abbreviation => 'GCS',
+	reference_id => met.get_reference_by_doi('10.1016/S0140-6736(74)91639-0'),
+	documentation => ''
+	);
+
+SELECT met.create_assessment_ignoresert(
+	assessment_type =>'questionnaire',
+	assessment_code => 'covidcnsneuroadd',
+	assessment_version_code => '1',
+	name => 'COVID-CNS additional neurological questions',
+	abbreviation => 'NEURO ADD',
+	reference_id => met.get_reference_by_doi('10.1136/bmj.m3871'),
+	documentation => ''
+	);
+
+SELECT met.create_assessment_ignoresert(
+	assessment_type =>'questionnaire',
+	assessment_code => 'covidcnsnis',
+	assessment_version_code => '1',
+	name => 'COVID-CNS Neurological Impairment Survey',
+	abbreviation => 'NIS',
+	reference_id => met.get_reference_by_doi('10.1136/bmj.m3871'), --Needs reference??
+	documentation => ''
+	);
+
 
 SELECT met.create_assessment_ignoresert(
 	assessment_type =>'questionnaire',
@@ -226,15 +279,7 @@ SELECT met.create_assessment_ignoresert(
 	documentation => ''
 	);
 
-SELECT met.create_assessment_ignoresert(
-	assessment_type =>'interview',
-	assessment_code => 'gcs',
-	assessment_version_code => '1',
-	name => 'Glasgow Coma Scale',
-	abbreviation => 'GCS',
-	reference_id => met.get_reference_by_doi('10.1016/S0140-6736(74)91639-0'),
-	documentation => ''
-	);
+
 
 /*
 
