@@ -753,58 +753,16 @@ ALTER FUNCTION coh.create_cohortinstance_table_column(
   OWNER TO "phenodb_owner";
 
  
-/*
-CREATE OR REPLACE FUNCTION met.select_cohort_inventory
-(
-	cohort_code met.varcharcodeletnum_lc = NULL,
-	instance_code met.varcharcodeletnum_lc = NULL,
-	assessment_code met.varcharcodeletnum_lc = NULL,
-	assessment_version_code met.varcharcodeletnum_lc = NULL,
-	OUT cohort_code text,
-	OUT instance_code text,
-	OUT assessment_code text,
-	OUT assessment_version_code text,
-	OUT assessment_item_code text,
-	OUT assessment_item_variable_code text,
-	OUT table_index information_schema.character_data,
-	OUT column_default information_schema.character_data,
-	OUT is_nullable information_schema.yes_or_no,
-	OUT data_type information_schema.character_data,
-	OUT cohort_id int
-	
-) AS $$
 
-	WITH fi AS (SELECT
-				substring("table_name" from '^(.+?)_') cohort_code,
-				substring("table_name" from '^.+?_(.*?)_') instance_code,
-				substring("table_name" from '^.+?_.*?_(.+?)_') assessment_code,
-				substring("table_name" from '^.+?_.*?_.+?_(.*?)_') assessment_version_code,
-				substring("table_name" from '_(\d+)$')::int table_index,
-				substring("column_name" from '^([^_\n\r]+?)(_|$)') assessment_item_code,
-				substring("column_name" from '^[^_\n\r]+?_(.+)$') assessment_item_variable_code,
-				columns.column_default,
-				columns.is_nullable,
-				columns.data_type
-				FROM information_schema.columns where table_catalog='phenodb' AND table_schema='coh'
-			   )
-	SELECT fi.*, cohort.id AS cohort_id
-	FROM fi LEFT OUTER JOIN met.cohort ON fi.cohort_code=cohort.code
-	where ($1=fi.cohort_code OR $1 IS NULL) AND ($2=fi.instance_code OR $2 IS NULL) AND ($3=fi.assessment_code OR $3 IS NULL) AND ($4=fi.assessment_version_code OR $4 IS NULL)
-	ORDER BY cohort_code,instance_code,assessment_code,assessment_version_code,assessment_item_code,assessment_item_variable_code
-
-
-$$ LANGUAGE sql;
---SECURITY DEFINER
---SET search_path = met, pg_temp;
-ALTER FUNCTION met.select_cohort_inventory(
-	cohort_code met.varcharcodeletnum_lc,
-	instance_code met.varcharcodeletnum_lc,
-	assessment_code met.varcharcodeletnum_lc,
-	assessment_version_code met.varcharcodeletnum_lc
-	)
-  OWNER TO "phenodb_coworker";
- */
---SELECT * FROM met.select_cohort_inventory('covidcns','2021','idpukbb','2021');
+CREATE OR REPLACE FUNCTION met.select_cohort_inventory() RETURNS SETOF met.cohort_inventory
+AS $$
+	SELECT * FROM met.cohort_inventory;
+$$ LANGUAGE sql
+SECURITY DEFINER
+SET search_path = met, pg_temp;
+ALTER FUNCTION met.select_cohort_inventory()
+  OWNER TO "phenodb_owner";
+--SELECT * FROM met.select_cohort_inventory();
  
 CREATE OR REPLACE FUNCTION met.get_cohortinstance_table_index
 (
@@ -818,7 +776,7 @@ DECLARE
 	columncount int=NULL;
 BEGIN
 
-	SELECT COUNT(cohort_inventory.cohort_code), max(cohort_inventory.table_index) INTO columncount,toreturn FROM met.cohort_inventory
+	SELECT COUNT(cohort_inventory.cohort_code), max(cohort_inventory.table_index) INTO columncount,toreturn FROM met.select_cohort_inventory() cohort_inventory
 	WHERE
 		cohort_inventory.cohort_code=$1
 	AND cohort_inventory.instance_code=$2
@@ -841,7 +799,7 @@ ALTER FUNCTION met.get_cohortinstance_table_index(
 	)
   OWNER TO "phenodb_coworker";
   
---SELECT met.get_cohortinstance_table_index('covidcns','2021','idpukbb','2021');
+--SELECT met.get_cohortinstance_table_index('covidcns','2022','covidcnsdem','1');
 
 CREATE OR REPLACE FUNCTION met._get_cohortinstance_table_index
 (
@@ -853,7 +811,7 @@ DECLARE
 	columncount int=NULL;
 BEGIN
 
-	SELECT COUNT(cohort_inventory.cohort_code), max(cohort_inventory.table_index) INTO columncount,toreturn FROM met.cohort_inventory
+	SELECT COUNT(cohort_inventory.cohort_code), max(cohort_inventory.table_index) INTO columncount,toreturn FROM met.select_cohort_inventory() cohort_inventory
 	WHERE
 		cohort_inventory.cohortinstance_id=$1
 	AND cohort_inventory.assessment_id=$2;
@@ -889,7 +847,7 @@ BEGIN
 	IF EXISTS
 	(
 		SELECT 1 assessment_item_variable_id
-		FROM met.cohort_inventory
+		FROM met.select_cohort_inventory() cohort_inventory
 		WHERE cohort_inventory.cohortinstance_id=$1 AND cohort_inventory.assessment_id=$2 AND cohort_inventory.assessment_item_id=$3 AND cohort_inventory.assessment_item_variable_id=$4
 	) THEN
 		toreturn:=TRUE;
@@ -924,7 +882,7 @@ BEGIN
 	IF EXISTS
 	(
 		SELECT 1 assessment_item_variable_id
-		FROM met.cohort_inventory
+		FROM met.select_cohort_inventory() cohort_inventory
 		WHERE cohort_inventory.cohortinstance_id=$1 AND cohort_inventory.assessment_id=$2 AND cohort_inventory.assessment_item_code=met.parse_assessment_item_code_from_column_name($3) 
 			AND (cohort_inventory.assessment_item_variable_code=met.parse_assessment_item_variable_code_from_column_name($3) OR cohort_inventory.assessment_item_variable_code IS NULL AND met.parse_assessment_item_variable_code_from_column_name($3) IS NULL)
 	) THEN
@@ -1045,7 +1003,7 @@ BEGIN
 	FOREACH c_n_table_name IN ARRAY n_table_names
 	LOOP
 		IF itable>1 THEN string_query_from:=string_query_from || ' UNION '; END IF;
-		string_query_from:=string_query_from || 'SELECT DISTINCT _stage,_individual_identifier FROM coh.' || c_n_table_name;
+		string_query_from:=string_query_from || 'SELECT DISTINCT _stage,cohortstage.code _stage_code,_individual_identifier FROM coh.' || c_n_table_name || ',met.cohortstage WHERE ' || c_n_table_name || '._stage=cohortstage.id' ;
 		itable:=itable+1;
 	END LOOP;
 	string_query_from:=string_query_from || ') d';
@@ -1094,7 +1052,7 @@ BEGIN
 	string_query_full:=coh._create_current_assessment_item_variable_select_query(cohort,cohortinstance,assessment_item_variable);
 	--RAISE NOTICE 'string_query_full: %',string_query_full;	
 	EXECUTE string_query_full;
-	GRANT SELECT ON t_export_data TO "phenodb_reader";
+	GRANT SELECT ON t_export_data TO "phenodb_user";
 	RETURN string_query_full;
 END;
 $$ LANGUAGE plpgsql
@@ -1115,11 +1073,14 @@ ALTER FUNCTION coh._create_current_assessment_item_variable_tview(
 --||
 --met.get_assessment_item_variables('cfq11','covidcns',ARRAY['correctworddifficultfind','feelweakweek','startsincecovid19questionrequi'])
 --);
---SELECT * FROM coh._create_current_assessment_item_variable_tview(1,1,met.get_assessment_item_variables(
---	assessment_code => 'covidcnsdem',
---	assessment_version_code => '1',
---	assessment_variable_code_original => ARRAY['dem_1.dob_age','dem_1.irish_numeric']));
---SELECT * FROM t_export_data
+ /*
+SELECT * FROM coh._create_current_assessment_item_variable_tview(1,1,met.get_assessment_item_variables(
+	assessment_code => 'covidcnsdem',
+	assessment_version_code => '1'
+	--assessment_variable_code_original => ARRAY['dem_1.dob_age','dem_1.irish_numeric']
+));
+SELECT * FROM t_export_data
+*/
  
 CREATE OR REPLACE FUNCTION coh.create_current_assessment_item_variable_tview
 (
@@ -1160,18 +1121,93 @@ ALTER FUNCTION coh.create_current_assessment_item_variable_tview(
 	assessment_variable_code_original character varying(100)[]
 	)
   OWNER TO "phenodb_coworker";
- 
---SELECT * FROM coh.create_current_assessment_item_variable_tview(
---	cohort_code => 'covidcns',
---	instance_code => '2022',
---	assessment_code => 'covidcnsdem',
---	assessment_version_code => '1',
+ /*
+SELECT * FROM coh.create_current_assessment_item_variable_tview(
+	cohort_code => 'covidcns',
+	instance_code => '2022',
+	assessment_code => 'covidcnsdem',
+	assessment_version_code => '1'
 --	assessment_item_code => ARRAY['followingqualificationsdoyou','ethnicorigin']
 --	--assessment_variable_code_full => NULL,
 --	--assessment_variable_code_original => NULL
---);
---SELECT * FROM t_export_data;
+);
+SELECT * FROM t_export_data;
+*/
  
+CREATE OR REPLACE FUNCTION met._select_assessment_item_variable_meta
+(
+	cohort int,
+	cohortinstance int,
+	assessment_item_variable int []
+) RETURNS TABLE (assessment_id int, assessment_item_variable_id int, assessment_item_code text, assessment_item_variable_code text, assessment_item_variable_code_full text, variable_original_descriptor text, udt_name text)
+AS $$
+	SELECT ci.assessment_id, ci.assessment_item_variable_id, ci.assessment_item_code, ci.assessment_item_variable_code, met.construct_cohortinstance_column_name(ci.assessment_item_code,ci.assessment_item_variable_code) assessment_item_variable_code_full,  ci.variable_original_descriptor, ci.udt_name FROM met.select_cohort_inventory() ci
+	WHERE ci.cohort_id = $1 AND ci.cohortinstance_id = $2 AND (cardinality($3)<1 OR ci.assessment_item_variable_id = ANY(assessment_item_variable));
+$$ LANGUAGE sql;
+ALTER FUNCTION met._select_assessment_item_variable_meta(
+	cohort int,
+	cohortinstance int,
+	assessment_item_variable int []
+	)
+  OWNER TO "phenodb_coworker";
+/*
+SELECT * FROM met._select_assessment_item_variable_meta(1,1,met.get_assessment_item_variables(
+	assessment_code => 'covidcnsdem',
+	assessment_version_code => '1'
+	--assessment_variable_code_original => ARRAY['dem.year','dem.polish_numeric']
+));
+
+SELECT * FROM met._select_assessment_item_variable_meta(1,1,met.get_assessment_item_variables(
+	assessment_code => 'covidcnsncrf',
+	assessment_version_code => 'm1'
+	--assessment_variable_code_original => ARRAY['dem.year','dem.polish_numeric']
+));
+*/
+ 
+CREATE OR REPLACE FUNCTION met.select_assessment_item_variable_meta
+(
+	cohort_code met.varcharcodeletnum_lc,
+	instance_code met.varcharcodeletnum_lc,
+	assessment_code met.varcharcodeletnum_lc,
+	assessment_version_code met.varcharcodeletnum_lc,
+	assessment_item_code met.varcharcodeletnum_lc[] DEFAULT NULL,
+	assessment_variable_code_full met.varcharcodeletnum_lc[] DEFAULT NULL,
+	assessment_variable_code_original character varying(100)[] DEFAULT NULL
+) RETURNS TABLE (assessment_id int, assessment_item_variable_id int, assessment_item_code text, assessment_item_variable_code text, assessment_item_variable_code_full text, variable_original_descriptor text, udt_name text)
+AS $$
+	SELECT * FROM met._select_assessment_item_variable_meta(
+		met.get_cohort($1),
+		met.get_cohortinstance($1,$2),
+		met.get_assessment_item_variables(
+			assessment_code => $3,
+			assessment_version_code => $4,
+			assessment_item_code => $5,
+			assessment_variable_code_full => $6,
+			assessment_variable_code_original => $7
+			)
+			);
+$$ LANGUAGE sql;
+ALTER FUNCTION met.select_assessment_item_variable_meta(
+	cohort_code met.varcharcodeletnum_lc,
+	instance_code met.varcharcodeletnum_lc,
+	assessment_code met.varcharcodeletnum_lc,
+	assessment_version_code met.varcharcodeletnum_lc,
+	assessment_item_code met.varcharcodeletnum_lc[],
+	assessment_variable_code_full met.varcharcodeletnum_lc[],
+	assessment_variable_code_original character varying(100)[]
+	)
+  OWNER TO "phenodb_coworker";
+/* 
+SELECT * FROM met.select_assessment_item_variable_meta(
+	cohort_code => 'covidcns',
+	instance_code => '2022',
+	assessment_code => 'covidcnsdem',
+	assessment_version_code => '1'
+--	assessment_item_code => ARRAY['followingqualificationsdoyou','ethnicorigin']
+--	--assessment_variable_code_full => NULL,
+--	--assessment_variable_code_original => NULL
+);
+*/
  
 
 CREATE OR REPLACE FUNCTION coh.prepare_import
@@ -1285,7 +1321,7 @@ BEGIN
 	INNER JOIN information_schema.tables ON tables.table_catalog='phenodb' AND tables.table_name=LOWER(isettings.table_name)
 	INNER JOIN pg_namespace ns ON ns.oid = pg_my_temp_schema() AND tables.table_schema = ns.nspname --tables.table_type='LOCAL TEMPORARY'
 	INNER JOIN information_schema.columns ON columns.table_catalog=tables.table_catalog AND columns.table_schema=tables.table_schema AND columns.table_name=tables.table_name AND columns.column_name=LOWER(van.column_name)
-	LEFT OUTER JOIN met.cohort_inventory inv ON inv.cohortinstance_id=isettings.cohortinstance_id AND inv.assessment_id=isettings.assessment_id AND LOWER(van.item_code)=inv.assessment_item_code AND (LOWER(van.variable_code) = inv.assessment_item_variable_code OR (van.variable_code IS NULL AND inv.assessment_item_variable_code IS NULL))
+	LEFT OUTER JOIN met.select_cohort_inventory() inv ON inv.cohortinstance_id=isettings.cohortinstance_id AND inv.assessment_id=isettings.assessment_id AND LOWER(van.item_code)=inv.assessment_item_code AND (LOWER(van.variable_code) = inv.assessment_item_variable_code OR (van.variable_code IS NULL AND inv.assessment_item_variable_code IS NULL))
 	ORDER BY assessment_id,cohortinstance_id,assessment_item_code,assessment_item_variable_code;
 	GRANT SELECT ON t_import_data_meta TO "phenodb_coworker";
 	SELECT COUNT(t_import_data_meta.*) INTO toreturn FROM t_import_data_meta;

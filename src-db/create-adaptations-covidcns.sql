@@ -268,7 +268,37 @@ SELECT met.create_assessment_ignoresert(
 	documentation => ''
 	);
 
+SELECT met.create_assessment_ignoresert(
+	assessment_type =>'interview',
+	assessment_code => 'covidcnsncrf',
+	assessment_version_code => 'm1', --module 1
+	name => 'COVID-CNS neuro case report',
+	abbreviation => 'NCRF1',
+	reference_id => met.get_reference_by_doi('10.1136/bmj.m3871'), --Needs reference??
+	documentation => ''
+	);
 
+SELECT met.create_assessment_ignoresert(
+	assessment_type =>'interview',
+	assessment_code => 'covidcnsncrf',
+	assessment_version_code => 'm2', --module 2
+	name => 'COVID-CNS neuro case report',
+	abbreviation => 'NCRF2',
+	reference_id => met.get_reference_by_doi('10.1136/bmj.m3871'), --Needs reference??
+	documentation => ''
+	);
+
+SELECT met.create_assessment_ignoresert(
+	assessment_type =>'interview',
+	assessment_code => 'covidcnsncrf',
+	assessment_version_code => 'm3', --module 3
+	name => 'COVID-CNS neuro case report',
+	abbreviation => 'NCRF3',
+	reference_id => met.get_reference_by_doi('10.1136/bmj.m3871'), --Needs reference??
+	documentation => ''
+	);
+
+/*
 SELECT met.create_assessment_ignoresert(
 	assessment_type =>'questionnaire',
 	assessment_code => 'covidcnscovid19',
@@ -278,7 +308,7 @@ SELECT met.create_assessment_ignoresert(
 	reference_id => met.get_reference_by_doi('10.1136/bmj.m3871'),
 	documentation => ''
 	);
-
+*/
 
 
 /*

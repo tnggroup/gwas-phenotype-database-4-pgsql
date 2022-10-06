@@ -38,5 +38,6 @@ AS WITH fi AS (SELECT
 				--OR (fi.assessment_item_variable_code IS NULL AND assessment_item_variable.variable_code IS NULL)
 			)
 	ORDER BY cohort_code,instance_code,assessment_code,assessment_version_code,assessment_item_code,assessment_item_variable_code;
-
+ALTER VIEW met.cohort_inventory OWNER TO "phenodb_coworker";
 --SELECT * FROM met.cohort_inventory;
+--SELECT * FROM information_schema.columns
