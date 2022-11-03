@@ -1023,6 +1023,9 @@ BEGIN
 	--RAISE NOTICE 'string_query_columns: %',string_query_columns;
 	--RAISE NOTICE 'string_query_from: %',string_query_from;
 
+    -- Join in shared data
+	--string_query_from:=string_query_from || ' LEFT OUTER JOIN sec.';
+
 	
 	string_query_full:=string_query_full || string_query_columns || ' ' || string_query_from || '; ';
 
@@ -1081,7 +1084,8 @@ SELECT * FROM coh._create_current_assessment_item_variable_tview(1,1,met.get_ass
 ));
 SELECT * FROM t_export_data
 */
- 
+
+
 CREATE OR REPLACE FUNCTION coh.create_current_assessment_item_variable_tview
 (
 	cohort_code met.varcharcodeletnum_lc,
@@ -1133,6 +1137,7 @@ SELECT * FROM coh.create_current_assessment_item_variable_tview(
 );
 SELECT * FROM t_export_data;
 */
+
  
 CREATE OR REPLACE FUNCTION met._select_assessment_item_variable_meta
 (

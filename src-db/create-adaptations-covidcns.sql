@@ -268,6 +268,39 @@ SELECT met.create_assessment_ignoresert(
 	documentation => ''
 	);
 
+INSERT INTO met.reference(doi,pmid,year,documentation) VALUES('10.1097/00005237-199712000-00003','9451188',1997,'The complete blood count: physiologic basis and clinical usage');
+SELECT met.create_assessment_ignoresert(
+	assessment_type =>'biosample',
+	assessment_code => 'cbc',
+	assessment_version_code => '1',
+	name => 'Complete blood count',
+	abbreviation => 'CBC',
+	reference_id => met.get_reference_by_doi('10.1097/00005237-199712000-00003'),
+	documentation => 'A complete blood count (CBC), also known as a full blood count (FBC)'
+	);
+
+INSERT INTO met.reference(doi,pmid,year,documentation) VALUES('10.1111/j.1532-5415.2005.53221.x','15817019',2005,'The Montreal Cognitive Assessment, MoCA: A Brief Screening Tool For Mild Cognitive Impairment');
+SELECT met.create_assessment_ignoresert(
+	assessment_type =>'cognitive',
+	assessment_code => 'moca',
+	assessment_version_code => '1',
+	name => 'The Montreal Cognitive Assessment',
+	abbreviation => 'MoCA',
+	reference_id => met.get_reference_by_doi('10.1111/j.1532-5415.2005.53221.x'),
+	documentation => ''
+	);
+
+SELECT met.create_assessment_ignoresert(
+	assessment_type =>'interview',
+	assessment_code => 'covidcnspsyneuroscr',
+	assessment_version_code => '1',
+	name => 'Psych neuro short screener',
+	abbreviation => 'psy_neuro_scr',
+	reference_id => met.get_reference_by_doi('10.1136/bmj.m3871'), --Needs reference??
+	documentation => ''
+	);
+
+
 SELECT met.create_assessment_ignoresert(
 	assessment_type =>'interview',
 	assessment_code => 'covidcnsncrf',
@@ -298,39 +331,16 @@ SELECT met.create_assessment_ignoresert(
 	documentation => ''
 	);
 
-/*
-SELECT met.create_assessment_ignoresert(
-	assessment_type =>'questionnaire',
-	assessment_code => 'covidcnscovid19',
-	assessment_version_code => '1',
-	name => 'COVID-19: Symptoms and Treatment',
-	abbreviation => 'COVID19',
-	reference_id => met.get_reference_by_doi('10.1136/bmj.m3871'),
-	documentation => ''
-	);
-*/
-
-
-/*
-
-
-
-
-
-
 INSERT INTO met.reference(doi,pmid,year,documentation) VALUES('10.21203/rs.3.pex-1085/v1',NULL,2020,'Great British Intelligence Test Protocol');
 SELECT met.create_assessment_ignoresert(
-	assessment_type =>'questionnaire',
-	assessment_code => 'cognitronq',
-	assessment_version_code => '2022',
-	name => 'Cognitron questionnaire',
-	abbreviation => 'COGNITRON Questionnaire',
+	assessment_type =>'cognitive',
+	assessment_code => 'cognitron',
+	assessment_version_code => '1',
+	name => 'Cognitron',
+	abbreviation => 'COGNITRON',
 	reference_id => met.get_reference_by_doi('10.21203/rs.3.pex-1085/v1'),
 	documentation => ''
 	);
-*/
-
-
 
 
 
