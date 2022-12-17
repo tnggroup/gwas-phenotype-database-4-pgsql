@@ -91,9 +91,12 @@ CREATE TABLE met.phenotype
     CONSTRAINT phenotype_pkey PRIMARY KEY (id),
     CONSTRAINT phenotype_phenotype_type_fk FOREIGN KEY (phenotype_type) REFERENCES met.phenotype_type(code)
 );
-CREATE UNIQUE INDEX phenotype_code_u ON met.phenotype (phenotype_type,code);
+ALTER TABLE met.phenotype ADD COLUMN IF NOT EXISTS sort_code met.varcharcodeletnum_uc;
+ALTER TABLE met.phenotype ALTER COLUMN sort_code SET NOT NULL;
 --ALTER TABLE met.phenotype ADD COLUMN IF NOT EXISTS id_gwasdb integer;
 --ALTER TABLE met.phenotype ADD COLUMN IF NOT EXISTS code_gwasdb character varying(10);
+CREATE UNIQUE INDEX phenotype_code_u ON met.phenotype (phenotype_type,sort_code,code);
+
 
 -- DROP TABLE met.phenotype_phenotype_category;
 CREATE TABLE met.phenotype_phenotype_category
@@ -296,7 +299,7 @@ CREATE TABLE met.assessment_item_variable
     variable_unit CHARACTER VARYING,
     variable_alt_code character varying(100)[], --if the variable has alternatives to choose from, code
     variable_alt_text character varying(100)[], --corresponding descriptive texts of the variable alternatives
-    --documentation character varying NOT NULL DEFAULT '', -- variable documentation is supposed to be placed in the comments of individual database columns instead
+    documentation character varying NOT NULL DEFAULT '',
     time_entry TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     time_change TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     CONSTRAINT assessment_item_variable_pkey PRIMARY KEY (id),
@@ -307,6 +310,7 @@ COMMENT ON TABLE met.assessment_item_variable IS 'Describes variables relating t
 CREATE UNIQUE INDEX assessment_item_variable_u ON met.assessment_item_variable (assessment_item,variable_code) WHERE variable_code IS NOT NULL;
 CREATE UNIQUE INDEX assessment_item_variable_u2 ON met.assessment_item_variable (assessment_item) WHERE variable_code IS NULL;
 CREATE INDEX assessment_item_variable_i ON met.assessment_item_variable (id,assessment_item,variable_code,variable_index);
+
 
 -- DROP TABLE met.summary_type;
 CREATE TABLE met.summary_type
@@ -328,9 +332,11 @@ CREATE TABLE met.summary
 	summary_type met.varcharcodesimple_lc NOT NULL,
 	sex met.sex NOT NULL,
 	is_meta_analysis boolean NOT NULL DEFAULT FALSE,
-	phenotype integer,
-    phenotype_assessment_type met.varcharcodeletnum_lc,
-    ancestry_population met.varcharcodesimple_lc,
+	phenotype integer NOT NULL,
+    phenotype_assessment_type met.varcharcodeletnum_lc NOT NULL,
+    ancestry_population met.varcharcodesimple_lc NOT NULL,
+    ancestry_details met.varcharcodesimple_lc[],
+    ancestry_details_fraction double precision[],
     country_reference character(2),
 	age_min_years met.intpos,
     age_mean_years met.intpos,
@@ -403,7 +409,7 @@ BEGIN TRANSACTION;
 -- DROP TABLE sum.phenotype_population_prevalence;
 CREATE TABLE sum.phenotype_population_prevalence
 (
-	sum integer NOT NULL,
+	summary integer NOT NULL,
     prevalence_life double precision,
     prevalence_life_sd double precision,
     prevalence_point double precision,
@@ -414,9 +420,28 @@ CREATE TABLE sum.phenotype_population_prevalence
     prevalence_12_month_se double precision,
     time_entry TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     time_change TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),    
-    CONSTRAINT phenotype_population_prevalence_sum_fk FOREIGN KEY (sum) REFERENCES met.summary(id)
+    CONSTRAINT phenotype_population_prevalence_sum_fk FOREIGN KEY (summary) REFERENCES met.summary(id)
 );
 COMMENT ON TABLE sum.phenotype_population_prevalence IS 'Phenotype population prevalence estimates.';
+
+
+CREATE TABLE sum.gwas
+(
+	summary integer NOT NULL,
+	assembly int NOT NULL, --36,37,38 etc corresponding to the GRCh version number
+	download_link text,
+    filename text,
+    platform text,
+    n_details text,
+    consortium text,
+    permissions text,
+    uk_biobank boolean,
+    dependent_variable_binary boolean,
+    time_entry TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    time_change TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),    
+    CONSTRAINT gwas_sum_fk FOREIGN KEY (summary) REFERENCES met.summary(id)
+);
+COMMENT ON TABLE sum.gwas IS 'Genome-Wide Association Study (GWAS) summary statistcis in the TNG GWAS sumstat repository.';
 
 
 --TODO- Add the gwas_summary_statistic table

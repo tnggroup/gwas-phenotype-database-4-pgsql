@@ -61,9 +61,9 @@ INSERT INTO met.phenotype_category(code,name,documentation) VALUES('nervous syst
 INSERT INTO met.phenotype_category(code,name,documentation) VALUES('respiratory','Respiratory','');
 INSERT INTO met.phenotype_category(code,name,documentation) VALUES('skin','Skin','');
 
-INSERT INTO met.phenotype(phenotype_type,code,name,documentation) VALUES('het','multi','Multiple phenotypes','Represents a collection of multiple phenotypes.');
-INSERT INTO met.phenotype(phenotype_type,code,name,documentation) VALUES('het','multimorbid','Multiple phenotypes, some morbid','Represents a collection of multiple phenotypes, where some of the phenotypes are morbidity associated phenotypes such as psychiatric disorders or somatic morbidity.');
-INSERT INTO met.phenotype(phenotype_type,code,name,documentation) VALUES('het','multihealthy','Multiple phenotypes, healthy','Represents a collection of multiple phenotypes, where there is no or little presence of morbidity.');
+INSERT INTO met.phenotype(phenotype_type,sort_code,code,name,documentation) VALUES('het','MISC','multi','Multiple phenotypes','Represents a collection of multiple phenotypes.');
+INSERT INTO met.phenotype(phenotype_type,sort_code,code,name,documentation) VALUES('het','MISC','multimorbid','Multiple phenotypes, some morbid','Represents a collection of multiple phenotypes, where some of the phenotypes are morbidity associated phenotypes such as psychiatric disorders or somatic morbidity.');
+INSERT INTO met.phenotype(phenotype_type,sort_code,code,name,documentation) VALUES('het','MISC','multihealthy','Multiple phenotypes, healthy','Represents a collection of multiple phenotypes, where there is no or little presence of morbidity.');
 
 INSERT INTO met.assessment_type(code,name,documentation) VALUES('questionnaire','Questionnaire','A questionnaire type of assessment, either on paper or digitally distributed.');
 INSERT INTO met.assessment_type(code,name,documentation) VALUES('interview','Interview','An interview type of assessment.');

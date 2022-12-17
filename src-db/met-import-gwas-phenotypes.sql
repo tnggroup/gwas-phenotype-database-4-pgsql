@@ -1,7 +1,7 @@
 --TRUNCATE TABLE met.phenotype_phenotype_category;
 --TRUNCATE TABLE met.phenotype RESTART IDENTITY CASCADE;
 
-CREATE OR REPLACE FUNCTION met.create_phenotype_ignoresert
+CREATE OR REPLACE FUNCTION met.create_phenotype_ignoresert_old
 (
 	name character varying(100),
 	code_suggestion_old character varying(100) DEFAULT NULL,

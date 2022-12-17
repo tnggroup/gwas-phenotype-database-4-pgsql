@@ -6,13 +6,14 @@
 CREATE OR REPLACE FUNCTION met.get_phenotype
 (
 	phenotype_type met.varcharcodeletnum_lc,
+	phenotype_sort_code met.varcharcodeletnum_uc,
 	phenotype_code met.varcharcodeletnum_lc
 ) RETURNS int AS $$
 DECLARE
     nid int = NULL;
 BEGIN
 	--use $ -notation if there is a collision between argument names and column names
-	SELECT id INTO nid FROM met.phenotype WHERE phenotype_type=$1 AND code=$2;
+	SELECT id INTO nid FROM met.phenotype WHERE phenotype_type=$1 AND sort_code = $2 AND code=$3;
 	
 	RETURN nid;
 END;
@@ -21,8 +22,28 @@ $$ LANGUAGE plpgsql;
 --SET search_path = met, pg_temp;
 ALTER FUNCTION met.get_phenotype(
 	phenotype_type met.varcharcodeletnum_lc,
+	phenotype_sort_code met.varcharcodeletnum_uc,
 	phenotype_code met.varcharcodeletnum_lc)
   OWNER TO "phenodb_coworker";
+ 
+CREATE OR REPLACE FUNCTION met.get_phenotype_category
+(
+	code met.varcharcodesimple_lc
+) RETURNS int AS $$
+DECLARE
+    nid int = NULL;
+BEGIN
+	SELECT id INTO nid FROM met.phenotype_category WHERE code=$1;
+	RETURN nid;
+END;
+$$ LANGUAGE plpgsql;
+--SECURITY DEFINER
+--SET search_path = met, pg_temp;
+ALTER FUNCTION met.get_phenotype_category(
+	code met.varcharcodesimple_lc
+	)
+  OWNER TO "phenodb_coworker";
+ 
 
 --DROP FUNCTION met.get_cohort;
 CREATE OR REPLACE FUNCTION met.get_cohort
@@ -114,6 +135,7 @@ ALTER FUNCTION met.get_reference_by_doi(
   OWNER TO "phenodb_coworker";
  
 --SELECT met.get_reference_by_doi('10.1136/bmj.m3871');
+ 
 
 --DROP FUNCTION met.get_assessment;
 CREATE OR REPLACE FUNCTION met.get_assessment
@@ -306,6 +328,36 @@ ALTER FUNCTION met.get_assessment_item_variables(
 
 --SELECT * FROM met.get_assessment_item_variables('covidcnsdem','1',ARRAY['dobage','ethnicorigin']);
 --SELECT * FROM met.get_assessment_item_variables('covidcnsdem','1');
+
+
+CREATE OR REPLACE FUNCTION met.create_phenotype_ignoresert
+(
+	name character varying(100),
+	code met.varcharcodeletnum_lc,
+	phenotype_type met.varcharcodesimple_lc DEFAULT 'trt',
+	documentation character varying DEFAULT ''
+) RETURNS int AS $$
+DECLARE
+    nid int = -1;
+BEGIN
+	
+	SELECT 1 id INTO nid FROM met.phenotype WHERE phenotype.code=$2 AND phenotype.phenotype_type=$3;
+	
+	IF nid IS NULL
+	THEN
+		INSERT INTO met.phenotype(name,code,phenotype_type,documentation) VALUES($1,$2,$3,$4) RETURNING id INTO nid;
+	END IF;
+	RETURN nid;
+END;
+$$ LANGUAGE plpgsql;
+ALTER FUNCTION met.create_phenotype_ignoresert(
+	name character varying(100),
+	code met.varcharcodeletnum_lc,
+	phenotype_type met.varcharcodesimple_lc,
+	documentation character varying
+	)
+  OWNER TO "phenodb_coworker"; 
+ 
  
  
 CREATE OR REPLACE FUNCTION met.create_assessment_ignoresert
@@ -445,7 +497,8 @@ CREATE OR REPLACE FUNCTION met._create_assessment_item_variable_ignoresert
     variable_float_max_limit double precision=NULL,
     variable_unit CHARACTER VARYING=NULL,
     variable_alt_code character varying(100)[]=NULL,
-    variable_alt_text character varying(100)[]=NULL
+    variable_alt_text character varying(100)[]=NULL,
+    documentation character varying = ''
 ) RETURNS int AS $$
 DECLARE
     nid int = NULL;
@@ -457,8 +510,8 @@ BEGIN
 	IF nid IS NULL
 	THEN
 		INSERT INTO met.assessment_item_variable(assessment_item,variable_code,variable_original_descriptor,variable_index,variable_name,variable_text,variable_int_min_limit,variable_int_max_limit,variable_float_min_limit,variable_float_max_limit,
-												variable_unit,variable_alt_code,variable_alt_text)
-		VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING id INTO nid;
+												variable_unit,variable_alt_code,variable_alt_text,documentation)
+		VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING id INTO nid;
 	END IF;
 	RETURN nid;
 END;
@@ -478,7 +531,8 @@ ALTER FUNCTION met._create_assessment_item_variable_ignoresert(
     variable_float_max_limit double precision,
     variable_unit CHARACTER VARYING,
     variable_alt_code character varying(100)[],
-    variable_alt_text character varying(100)[]
+    variable_alt_text character varying(100)[],
+    documentation character varying
 	)
   OWNER TO "phenodb_coworker";
  
@@ -733,7 +787,7 @@ BEGIN
 	PERFORM coh.create_cohortinstance_table(cohort_code,instance_code,assessment_code,assessment_version_code,tindex);
 	--TODO add verify assessment item and variable
 	string_query := 'ALTER TABLE coh.' || met.construct_cohortinstance_table_name(cohort_code,instance_code,assessment_code,assessment_version_code,tindex) || ' ADD COLUMN IF NOT EXISTS ' || met.construct_cohortinstance_column_name(item_code,variable_code) || ' ' || pgsql_datatype_string || ';';
-	--RAISE NOTICE 'Q: %',string_query;
+	RAISE NOTICE 'Q: %',string_query;
 	EXECUTE string_query;
 
 	RETURN tindex;
@@ -773,24 +827,10 @@ CREATE OR REPLACE FUNCTION met.get_cohortinstance_table_index
 ) RETURNS int AS $$
 DECLARE
     toreturn int=NULL;
-	columncount int=NULL;
 BEGIN
-
-	SELECT COUNT(cohort_inventory.cohort_code), max(cohort_inventory.table_index) INTO columncount,toreturn FROM met.select_cohort_inventory() cohort_inventory
-	WHERE
-		cohort_inventory.cohort_code=$1
-	AND cohort_inventory.instance_code=$2
-	AND cohort_inventory.assessment_code=$3
-	AND cohort_inventory.assessment_version_code=$4;
-	
-	IF columncount<500
-	THEN RETURN toreturn;
-	ELSE RETURN (toreturn+1);
-	END IF;
+	RETURN met._get_cohortinstance_table_index(met.get_cohortinstance(cohort_code,instance_code),met.get_assessment(assessment_code,assessment_version_code));
 END;
-$$ LANGUAGE plpgsql;
---SECURITY DEFINER
---SET search_path = met, pg_temp;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = met, pg_temp;
 ALTER FUNCTION met.get_cohortinstance_table_index(
 	cohort_code met.varcharcodeletnum_lc,
 	instance_code met.varcharcodeletnum_lc,
@@ -800,6 +840,15 @@ ALTER FUNCTION met.get_cohortinstance_table_index(
   OWNER TO "phenodb_coworker";
   
 --SELECT met.get_cohortinstance_table_index('covidcns','2022','covidcnsdem','1');
+--SELECT * FROM met.get_cohortinstance_table_index('covidcns','2022','idpukbb','2022');
+ /*
+SELECT COUNT(cohort_inventory.cohort_code), max(cohort_inventory.table_index) FROM met.select_cohort_inventory() cohort_inventory
+	WHERE
+		cohort_inventory.cohort_code='covidcns'
+	AND cohort_inventory.instance_code='2022'
+	AND cohort_inventory.assessment_code='idpukbb'
+	AND cohort_inventory.assessment_version_code='2022'
+	*/
 
 CREATE OR REPLACE FUNCTION met._get_cohortinstance_table_index
 (
@@ -812,18 +861,18 @@ DECLARE
 BEGIN
 
 	SELECT COUNT(cohort_inventory.cohort_code), max(cohort_inventory.table_index) INTO columncount,toreturn FROM met.select_cohort_inventory() cohort_inventory
-	WHERE
-		cohort_inventory.cohortinstance_id=$1
-	AND cohort_inventory.assessment_id=$2;
+	WHERE cohort_inventory.cohortinstance_id=$1 AND cohort_inventory.assessment_id=$2;
+
+	RAISE NOTICE 'column count %',columncount;
+	RAISE NOTICE 'max table index %',toreturn;
+	RAISE NOTICE 'check %',(columncount / toreturn);
 	
-	IF columncount<500
+	IF (columncount / toreturn)<500
 	THEN RETURN toreturn;
 	ELSE RETURN (toreturn+1);
 	END IF;
 END;
-$$ LANGUAGE plpgsql;
---SECURITY DEFINER
---SET search_path = met, pg_temp;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = met, pg_temp;
 ALTER FUNCTION met._get_cohortinstance_table_index(
 	cohortinstance_id int,
 	assessment_id int
@@ -1314,6 +1363,11 @@ BEGIN
 		LOWER(van.item_code) assessment_item_code,
 		LOWER(van.variable_code) assessment_item_variable_code,
 		van.variable_original_descriptor,
+		van.variable_label,
+		van.index variable_index,
+		van.variable_documentation,
+		van.variable_unit,
+		van.variable_data_type,
 		isettings.cohortinstance_id,
 		isettings.assessment_id,
 		inv.table_schema n_table_schema, inv.table_name n_table_name, inv.column_name n_column_name, inv.variable_original_descriptor n_variable_original_descriptor, inv.data_type n_data_type, inv.assessment_item_code n_assessment_item_code, inv.assessment_item_variable_code n_assessment_item_variable_code, inv.assessment_item_variable_id n_assessment_item_variable_id,
@@ -1366,6 +1420,11 @@ BEGIN
 	m.assessment_item_code,
 	m.assessment_item_variable_code,
 	m.variable_original_descriptor,
+	m.variable_label,
+	m.variable_index,
+	m.variable_documentation,
+	m.variable_unit,
+	m.variable_data_type,
 	m.column_name,
 	m.data_type,
 	(m.n_column_name IS NOT NULL) annotated
@@ -1413,7 +1472,7 @@ INSERT INTO ttest(spid,item1_var1, item1_var2, item2_var1, item3_var1, item3_var
 SELECT * FROM ttest;
 
 */
-
+--TODO - Chnages to the annotation part is ongoing!! WIP!!
 CREATE OR REPLACE FUNCTION coh.import_data
 (
 	cohort_code met.varcharcodeletnum_lc,
@@ -1511,24 +1570,29 @@ BEGIN
 				item_name => r.assessment_item_code,
 				item_index => CAST(r.item_index AS int),
 				item_text => r.item_text,
-				documentation => r.item_documentation
+				documentation => CASE 
+									WHEN r.item_documentation IS NULL THEN ''
+									ELSE r.item_documentation END
 			);
 		END LOOP;
 		
 		--add item variables and cohort table columns
 		FOR r IN 
 		SELECT * FROM 
-		t_import_data_assessment_item_variable_stats vstats 
-		--INNER JOIN t_import_data_assessment_item_variable_annotation a --not possible to manually annotate variables yet
-		--ON istats.assessment_item_code=a.assessment_item_code 
+		t_import_data_assessment_item_variable_stats vstats --the business variables
+		INNER JOIN t_import_data_assessment_variable_annotation a
+		ON vstats.column_name=a.column_name 
 		WHERE vstats.annotated = FALSE
 		LOOP
+			RAISE NOTICE 'cohort_code %',cohort_code;
+			RAISE NOTICE 'instance_code %',instance_code;
+			RAISE NOTICE 'assessment_version_code %',assessment_version_code;
 			RAISE NOTICE 'r.assessment_item_code %',r.assessment_item_code;
-			RAISE NOTICE 'met._get_assessment_item()= %',CAST(met._get_assessment_item(var_assessment_id,r.assessment_item_code) AS integer);
 			RAISE NOTICE 'r.assessment_item_variable_code %',r.assessment_item_variable_code;
-			RAISE NOTICE 'variable_original_descriptor=>r.column_name %',CAST(r.column_name AS character varying);
-			RAISE NOTICE 'variable_index=>1 %',CAST(1 AS int);
-			RAISE NOTICE 'r.data_type=>1 %',r.data_type;
+			RAISE NOTICE 'r.variable_original_descriptor %',CAST(r.column_name AS character varying);
+			RAISE NOTICE 'r.variable_index %',CAST(r.variable_index AS int);
+			RAISE NOTICE 'r.variable_data_type %',r.variable_data_type;
+			RAISE NOTICE 'r.data_type %',r.data_type;
 			PERFORM met._create_assessment_item_variable_ignoresert
 			(
 				assessment_item => CAST(met._get_assessment_item(var_assessment_id,r.assessment_item_code) AS integer),
@@ -1536,10 +1600,16 @@ BEGIN
 									WHEN r.assessment_item_variable_code IS NULL THEN ''
 									ELSE CAST(r.assessment_item_variable_code AS met.varcharcodesimple_lc) END,
 				variable_original_descriptor => CAST(r.variable_original_descriptor AS character varying),
-				variable_index => CAST(1 AS int),
-				variable_name => CAST(r.assessment_item_variable_code AS character varying)
+				variable_index => CAST(r.variable_index AS int),
+				variable_name => CASE 
+									WHEN r.variable_label IS NOT NULL THEN r.variable_label
+									ELSE CAST(r.assessment_item_variable_code AS character varying) END,
+				variable_unit => CAST(r.variable_unit AS character varying),
+				documentation => CASE 
+									WHEN r.variable_documentation IS NULL THEN ''
+									ELSE CAST(r.variable_documentation AS character varying) END
 			);
-			PERFORM coh.create_cohortinstance_table_column(cohort_code,instance_code,assessment_code,assessment_version_code,r.assessment_item_code,r.assessment_item_variable_code,r.data_type);
+			PERFORM coh.create_cohortinstance_table_column(cohort_code,instance_code,assessment_code,assessment_version_code,r.assessment_item_code,r.assessment_item_variable_code,CASE WHEN r.variable_data_type IS NULL THEN r.data_type ELSE r.variable_data_type END); -- Use the annotated datatype to allow for setting final datatype through annotation.
 		END LOOP;
 	END IF;
 	
@@ -1574,12 +1644,16 @@ BEGIN
 			string_source_column_names:=string_source_column_names || ','  || E'\'' || now() || E'\''; 
 			string_source_column_names:=string_source_column_names || ',src._individual_identifier';
 
-			FOR r IN SELECT * FROM t_import_data_meta_selected WHERE t_import_data_meta_selected.n_table_name=c_n_table_name AND t_import_data_meta_selected.n_column_name IS NOT NULL
+			FOR r IN SELECT * FROM t_import_data_meta_selected v
+			INNER JOIN t_import_data_assessment_variable_annotation a ON v.column_name=a.column_name 
+			WHERE v.n_table_name=c_n_table_name AND v.n_column_name IS NOT NULL
 			LOOP
 				string_target_column_names:=string_target_column_names || ',' || r.n_column_name;
-				string_source_column_names:=string_source_column_names || ',"' || r.column_name || '"';
+				string_source_column_names:=string_source_column_names || ',CAST("' || r.column_name || '" AS '|| (CASE WHEN r.variable_data_type IS NULL THEN r.data_type ELSE r.variable_data_type END) ||')';
 			END LOOP;
-
+		
+			--RAISE NOTICE 'STCN-string: %',string_target_column_names;
+			--RAISE NOTICE 'STSN-string: %',string_source_column_names;
 
 			string_query := 'INSERT INTO coh.' || c_n_table_name || '(' || string_target_column_names || ')' || ' SELECT ' || string_source_column_names || ' FROM t_src_individual src WHERE src._individual_identifier IS NOT NULL';
 			RAISE NOTICE 'Q: %',string_query;
@@ -1607,6 +1681,8 @@ ALTER FUNCTION coh.import_data(
 	do_insert boolean
 	)
   OWNER TO "phenodb_owner";
+ 
+ --SELECT * FROM coh.create_cohortinstance_table_column('covidcns','2022','idpukbb','2022','braincogx',NULL,'double precision');
 
   --SELECT * FROM met.get_cohortinstance('covidcns','2021');
   --SELECT * FROM met.get_assessment('atest','1');
