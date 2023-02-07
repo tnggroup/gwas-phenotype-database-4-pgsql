@@ -35,6 +35,16 @@ SELECT met.create_assessment_ignoresert(
 	documentation => ''
 	);
 
+SELECT met.create_assessment_ignoresert(
+	assessment_type =>'imaging',
+	assessment_code => 'fsidpukbb',
+	assessment_version_code => '2022',
+	name => 'Oxford server/UK Biobank type IDP collection, FreeSurfer IDPs, as of 2022',
+	abbreviation => 'FSIDP UKBB',
+	reference_id => met.get_reference_by_doi('10.1136/bmj.m3871'),
+	documentation => ''
+	);
+
 --Baseline
 
 SELECT met.create_assessment_ignoresert(
