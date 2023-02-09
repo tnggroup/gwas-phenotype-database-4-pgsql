@@ -285,8 +285,8 @@ ALTER FUNCTION met._get_assessment_item_variable(
   --DROP FUNCTION met.get_assessment_item_variables;
 CREATE OR REPLACE FUNCTION met.get_assessment_item_variables
 (
-	assessment_code met.varcharcodeletnum_lc,
-	assessment_version_code met.varcharcodeletnum_lc,
+	assessment_code met.varcharcodeletnum_lc DEFAULT NULL,
+	assessment_version_code met.varcharcodeletnum_lc DEFAULT NULL,
 	assessment_item_code met.varcharcodeletnum_lc[] DEFAULT ARRAY[]::met.varcharcodeletnum_lc[],
 	assessment_variable_code_full met.varcharcodeletnum_lc[] DEFAULT ARRAY[]::met.varcharcodeletnum_lc[],
 	assessment_variable_code_original character varying(100)[] DEFAULT ARRAY[]::character varying(100)[]
@@ -294,6 +294,8 @@ CREATE OR REPLACE FUNCTION met.get_assessment_item_variables
 DECLARE
     toreturn int [] = NULL;
 BEGIN
+	
+	IF $1 IS NULL || $2 IS NULL THEN RETURN '{}'; END IF;
 	
 	IF assessment_item_code IS NULL THEN assessment_item_code:=ARRAY[]::met.varcharcodeletnum_lc[]; END IF;
 	IF assessment_variable_code_full IS NULL THEN assessment_variable_code_full:=ARRAY[]::met.varcharcodeletnum_lc[]; END IF;
@@ -1177,7 +1179,7 @@ ALTER FUNCTION coh.create_current_assessment_item_variable_tview(
  /*
 SELECT * FROM coh.create_current_assessment_item_variable_tview(
 	cohort_code => 'covidcns',
-	instance_code => '2022',
+	instance_code => '2023',
 	assessment_code => 'covidcnsdem',
 	assessment_version_code => '1'
 --	assessment_item_code => ARRAY['followingqualificationsdoyou','ethnicorigin']
@@ -1192,11 +1194,14 @@ CREATE OR REPLACE FUNCTION met._select_assessment_item_variable_meta
 (
 	cohort int,
 	cohortinstance int,
-	assessment_item_variable int []
-) RETURNS TABLE (assessment_id int, assessment_item_variable_id int, assessment_item_code text, assessment_item_variable_code text, assessment_item_variable_code_full text, variable_original_descriptor text, udt_name text)
+	assessment_item_variable int [] DEFAULT '{}'
+) RETURNS TABLE (assessment_id int, assessment_item_id int, assessment_item_variable_id int, assessment_code text, assessment_version_code text, assessment_item_code text, assessment_item_variable_code text, assessment_item_variable_code_full text, variable_alt_code text, variable_original_descriptor text, variable_name text, udt_name text, variable_index int, variable_text text, variable_alt_text text, variable_unit text, variable_documentation text)
 AS $$
-	SELECT ci.assessment_id, ci.assessment_item_variable_id, ci.assessment_item_code, ci.assessment_item_variable_code, met.construct_cohortinstance_column_name(ci.assessment_item_code,ci.assessment_item_variable_code) assessment_item_variable_code_full,  ci.variable_original_descriptor, ci.udt_name FROM met.select_cohort_inventory() ci
-	WHERE ci.cohort_id = $1 AND ci.cohortinstance_id = $2 AND (cardinality($3)<1 OR ci.assessment_item_variable_id = ANY(assessment_item_variable));
+	SELECT ci.assessment_id, ci.assessment_item_id, ci.assessment_item_variable_id, ass.code, ass.version_code, ci.assessment_item_code, ci.assessment_item_variable_code, met.construct_cohortinstance_column_name(ci.assessment_item_code,ci.assessment_item_variable_code) assessment_item_variable_code_full, aiv.variable_alt_code,  ci.variable_original_descriptor, aiv.variable_name, ci.udt_name, aiv.variable_index, aiv.variable_text, aiv.variable_alt_text, aiv.variable_unit, aiv.documentation 
+	FROM met.select_cohort_inventory() ci 
+	INNER JOIN met.assessment_item_variable aiv ON ci.assessment_item_variable_id = aiv.id
+	INNER JOIN met.assessment ass ON ci.assessment_id = ass.id
+	WHERE ci.cohort_id = $1 AND ci.cohortinstance_id = $2 AND (cardinality($3)<1 OR ci.assessment_item_variable_id = ANY($3));
 $$ LANGUAGE sql;
 ALTER FUNCTION met._select_assessment_item_variable_meta(
 	cohort int,
@@ -1204,14 +1209,17 @@ ALTER FUNCTION met._select_assessment_item_variable_meta(
 	assessment_item_variable int []
 	)
   OWNER TO "phenodb_coworker";
+
 /*
-SELECT * FROM met._select_assessment_item_variable_meta(1,1,met.get_assessment_item_variables(
+SELECT * FROM met._select_assessment_item_variable_meta(1,34);
+
+SELECT * FROM met._select_assessment_item_variable_meta(1,34,met.get_assessment_item_variables(
 	assessment_code => 'covidcnsdem',
 	assessment_version_code => '1'
 	--assessment_variable_code_original => ARRAY['dem.year','dem.polish_numeric']
 ));
 
-SELECT * FROM met._select_assessment_item_variable_meta(1,1,met.get_assessment_item_variables(
+SELECT * FROM met._select_assessment_item_variable_meta(1,34,met.get_assessment_item_variables(
 	assessment_code => 'covidcnsncrf',
 	assessment_version_code => 'm1'
 	--assessment_variable_code_original => ARRAY['dem.year','dem.polish_numeric']
@@ -1222,12 +1230,12 @@ CREATE OR REPLACE FUNCTION met.select_assessment_item_variable_meta
 (
 	cohort_code met.varcharcodeletnum_lc,
 	instance_code met.varcharcodeletnum_lc,
-	assessment_code met.varcharcodeletnum_lc,
-	assessment_version_code met.varcharcodeletnum_lc,
+	assessment_code met.varcharcodeletnum_lc DEFAULT NULL,
+	assessment_version_code met.varcharcodeletnum_lc DEFAULT NULL,
 	assessment_item_code met.varcharcodeletnum_lc[] DEFAULT NULL,
 	assessment_variable_code_full met.varcharcodeletnum_lc[] DEFAULT NULL,
 	assessment_variable_code_original character varying(100)[] DEFAULT NULL
-) RETURNS TABLE (assessment_id int, assessment_item_variable_id int, assessment_item_code text, assessment_item_variable_code text, assessment_item_variable_code_full text, variable_original_descriptor text, udt_name text)
+) RETURNS TABLE (assessment_id int, assessment_item_id int, assessment_item_variable_id int, assessment_code text, assessment_version_code text, assessment_item_code text, assessment_item_variable_code text, assessment_item_variable_code_full text, variable_alt_code text, variable_original_descriptor text, variable_name text, udt_name text, variable_index int, variable_text text, variable_alt_text text, variable_unit text, variable_documentation text)
 AS $$
 	SELECT * FROM met._select_assessment_item_variable_meta(
 		met.get_cohort($1),
@@ -1254,7 +1262,7 @@ ALTER FUNCTION met.select_assessment_item_variable_meta(
 /* 
 SELECT * FROM met.select_assessment_item_variable_meta(
 	cohort_code => 'covidcns',
-	instance_code => '2022',
+	instance_code => '2023',
 	assessment_code => 'covidcnsdem',
 	assessment_version_code => '1'
 --	assessment_item_code => ARRAY['followingqualificationsdoyou','ethnicorigin']
@@ -1263,6 +1271,85 @@ SELECT * FROM met.select_assessment_item_variable_meta(
 );
 */
  
+CREATE OR REPLACE FUNCTION met._select_assessment_item_meta
+(
+	cohort int,
+	cohortinstance int,
+	assessment_item int [] DEFAULT '{}'
+) RETURNS TABLE (assessment_id int, assessment_item_id int, assessment_item_type int, assessment_code text, assessment_version_code text, assessment_item_type_code text, assessment_item_code text, item_original_descriptor text, item_name text, item_index int, item_text text, item_documentation text)
+AS $$
+	SELECT ass.id, ai.id, ai.assessment_item_type, ass.code, ass.version_code, ait.code, ai.item_code, ai.item_original_descriptor, ai.item_name, ai.item_index, ai.item_text, ai.documentation 
+	FROM (SELECT DISTINCT(ci.assessment_item_id) FROM met.select_cohort_inventory() ci WHERE ci.cohort_id = $1 AND ci.cohortinstance_id = $2) cii 
+	INNER JOIN met.assessment_item ai ON cii.assessment_item_id = ai.id
+	INNER JOIN met.assessment_item_type ait ON ai.assessment_item_type = ait.id
+	INNER JOIN met.assessment ass ON ai.assessment = ass.id
+	WHERE (cardinality($3)<1 OR ai.id = ANY($3));
+$$ LANGUAGE sql;
+ALTER FUNCTION met._select_assessment_item_meta(
+	cohort int,
+	cohortinstance int,
+	assessment_item int []
+	)
+  OWNER TO "phenodb_coworker";
+ 
+/* 
+SELECT * FROM met._select_assessment_item_meta(1,34);
+ */
+ 
+CREATE OR REPLACE FUNCTION met.select_assessment_item_meta
+(
+	cohort_code met.varcharcodeletnum_lc,
+	instance_code met.varcharcodeletnum_lc,
+	assessment_code met.varcharcodeletnum_lc DEFAULT NULL,
+	assessment_version_code met.varcharcodeletnum_lc DEFAULT NULL,
+	assessment_item_code met.varcharcodeletnum_lc[] DEFAULT NULL,
+	assessment_variable_code_full met.varcharcodeletnum_lc[] DEFAULT NULL,
+	assessment_variable_code_original character varying(100)[] DEFAULT NULL
+) RETURNS TABLE (assessment_id int, assessment_item_id int, assessment_item_type int, assessment_code text, assessment_version_code text, assessment_item_type_code text, assessment_item_code text, item_original_descriptor text, item_name text, item_index int, item_text text, item_documentation text)
+AS $$
+	SELECT * FROM met._select_assessment_item_meta(
+		met.get_cohort($1),
+		met.get_cohortinstance($1,$2),
+		ARRAY(
+			SELECT DISTINCT(aiv.assessment_item) FROM met.get_assessment_item_variables(
+				assessment_code => $3,
+				assessment_version_code => $4,
+				assessment_item_code => $5,
+				assessment_variable_code_full => $6,
+				assessment_variable_code_original => $7
+				) iv INNER JOIN met.assessment_item_variable aiv ON aiv.id = ANY(iv)
+			)
+			);
+$$ LANGUAGE sql;
+ALTER FUNCTION met.select_assessment_item_meta(
+	cohort_code met.varcharcodeletnum_lc,
+	instance_code met.varcharcodeletnum_lc,
+	assessment_code met.varcharcodeletnum_lc,
+	assessment_version_code met.varcharcodeletnum_lc,
+	assessment_item_code met.varcharcodeletnum_lc[],
+	assessment_variable_code_full met.varcharcodeletnum_lc[],
+	assessment_variable_code_original character varying(100)[]
+	)
+  OWNER TO "phenodb_coworker";
+
+ /*
+SELECT * FROM met.select_assessment_item_meta(
+	cohort_code => 'covidcns',
+	instance_code => '2023',
+	assessment_code => 'covidcnsdem',
+	assessment_version_code => '1'
+--	assessment_item_code => ARRAY['followingqualificationsdoyou','ethnicorigin']
+--	--assessment_variable_code_full => NULL,
+--	--assessment_variable_code_original => NULL
+);
+ */
+ 
+/* 
+SELECT * FROM met.select_assessment_item_meta(
+	cohort_code => 'covidcns',
+	instance_code => '2023'
+);
+*/
 
 CREATE OR REPLACE FUNCTION coh.prepare_import
 (

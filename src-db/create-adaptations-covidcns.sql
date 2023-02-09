@@ -23,6 +23,7 @@ INSERT INTO met.cohortstage(code,cohort,name,abbreviation,order_index) VALUES('b
 INSERT INTO met.cohortstage(code,cohort,name,abbreviation,order_index) VALUES('blinp',met.get_cohort('covidcns'),'Baseline, inpatients only','BL INP',0);
 INSERT INTO met.cohortstage(code,cohort,name,abbreviation,order_index) VALUES('bloutp',met.get_cohort('covidcns'),'Baseline, outpatients only','BL OUTP',0);
 INSERT INTO met.cohortinstance(code,cohort,name,abbreviation,reference) VALUES('2022',met.get_cohort('covidcns'),'First extraction in 2022','2022',met.get_reference_by_doi('10.1136/bmj.m3871'));
+INSERT INTO met.cohortinstance(code,cohort,name,abbreviation,reference) VALUES('2023',met.get_cohort('covidcns'),'Improved extraction in 2023','2023',met.get_reference_by_doi('10.1136/bmj.m3871'));
 INSERT INTO met.assessment_item_type(assessment_type,code,name,abbreviation,documentation) VALUES('imaging','idp','Imaging-Derived Phenotype','IDP','Measurements based on imaging derived and QC metrics.');
 
 SELECT met.create_assessment_ignoresert(
@@ -352,6 +353,34 @@ SELECT met.create_assessment_ignoresert(
 	documentation => ''
 	);
 
+
+-- COVID-CNS Data dictionary views
+CREATE OR REPLACE VIEW coh_covidcns.dictionary_variables
+AS SELECT * FROM met.select_assessment_item_variable_meta(
+	cohort_code => 'covidcns',
+	instance_code => '2023');
+ALTER VIEW coh_covidcns.dictionary_variables OWNER TO "phenodb_coworker";
+
+CREATE OR REPLACE VIEW coh_covidcns.dictionary_items
+AS SELECT * FROM met.select_assessment_item_meta(
+	cohort_code => 'covidcns',
+	instance_code => '2023');
+ALTER VIEW coh_covidcns.dictionary_items OWNER TO "phenodb_coworker";
+
+--Simple views
+CREATE OR REPLACE VIEW coh_covidcns.dictionary_variables_simple
+AS SELECT assessment_code, assessment_version_code, assessment_item_code, assessment_item_variable_code, variable_original_descriptor, udt_name db_data_type, variable_unit, variable_documentation 
+FROM met.select_assessment_item_variable_meta(
+	cohort_code => 'covidcns',
+	instance_code => '2023');
+ALTER VIEW coh_covidcns.dictionary_variables_simple OWNER TO "phenodb_coworker";
+
+CREATE OR REPLACE VIEW coh_covidcns.dictionary_items_simple
+AS SELECT assessment_code, assessment_version_code, assessment_item_type_code, assessment_item_code, item_original_descriptor, item_text, item_documentation
+FROM met.select_assessment_item_meta(
+	cohort_code => 'covidcns',
+	instance_code => '2023');
+ALTER VIEW coh_covidcns.dictionary_items_simple OWNER TO "phenodb_coworker";
 
 
 
