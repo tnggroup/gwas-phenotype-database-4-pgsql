@@ -1059,7 +1059,7 @@ BEGIN
 	END LOOP;
 	string_query_from:=string_query_from || ') d';
 
-	FOR r IN SELECT ci.* FROM (SELECT UNNEST($3) assessment_item_variable, generate_subscripts($3,1) rn) aiv INNER JOIN met.cohort_inventory ci ON aiv.assessment_item_variable=ci.assessment_item_variable_id ORDER BY aiv.rn
+	FOR r IN SELECT ci.* FROM (SELECT UNNEST($3) assessment_item_variable, generate_subscripts($3,1) rn) aiv INNER JOIN met.cohort_inventory ci ON aiv.assessment_item_variable=ci.assessment_item_variable_id AND $1=ci.cohort_id AND $2=ci.cohortinstance_id ORDER BY aiv.rn
 	LOOP
 		--RAISE NOTICE 'r.assessment_item_variable_id %',r.assessment_item_variable_id;
 		string_query_columns := string_query_columns || ',q' || r.assessment_item_variable_id || '.' || r.column_name;
@@ -1091,7 +1091,8 @@ ALTER FUNCTION coh._create_current_assessment_item_variable_select_query(
 	assessment_item_variable int []
 	)
   OWNER TO "phenodb_owner";
-
+ 
+ 
 
 CREATE OR REPLACE FUNCTION coh._create_current_assessment_item_variable_tview
 (
@@ -1188,7 +1189,18 @@ SELECT * FROM coh.create_current_assessment_item_variable_tview(
 );
 SELECT * FROM t_export_data;
 */
-
+/*
+SELECT * FROM coh.create_current_assessment_item_variable_tview(
+	cohort_code => 'covidcns',
+	instance_code => '2023',
+	assessment_code => 'idpukbb',
+	assessment_version_code => '2022'
+--	assessment_item_code => ARRAY['followingqualificationsdoyou','ethnicorigin']
+--	--assessment_variable_code_full => NULL,
+--	--assessment_variable_code_original => NULL
+);
+SELECT * FROM t_export_data;
+*/
  
 CREATE OR REPLACE FUNCTION met._select_assessment_item_variable_meta
 (
