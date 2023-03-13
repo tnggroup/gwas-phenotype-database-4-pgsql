@@ -5,6 +5,6 @@ This database structure was primarily created to be used internally by the TNG g
 
 There is no publication describing the database so far, but please acknowledge the work if you use the software.
 
-For instructions on how to use the database, see the [connection and usage instructions](https://github.com/tnggroup/gwas-phenotype-database-4-pgsql/wiki/PhenoDB-Connection-and-Usage-Instructions) in the [wiki](https://github.com/tnggroup/gwas-phenotype-database-4-pgsql/wiki).
+For instructions on how to use the database, see the [wiki](https://github.com/tnggroup/gwas-phenotype-database-4-pgsql/wiki).
 
 Johan Zvrskovec and colleagues
