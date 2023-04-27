@@ -93,9 +93,7 @@ CREATE TABLE met.phenotype
 );
 ALTER TABLE met.phenotype ADD COLUMN IF NOT EXISTS sort_code met.varcharcodeletnum_uc;
 ALTER TABLE met.phenotype ALTER COLUMN sort_code SET NOT NULL;
---ALTER TABLE met.phenotype ADD COLUMN IF NOT EXISTS id_gwasdb integer;
---ALTER TABLE met.phenotype ADD COLUMN IF NOT EXISTS code_gwasdb character varying(10);
-CREATE UNIQUE INDEX phenotype_code_u ON met.phenotype (phenotype_type,sort_code,code);
+CREATE UNIQUE INDEX phenotype_u ON met.phenotype(phenotype_type,code);
 
 
 -- DROP TABLE met.phenotype_phenotype_category;
@@ -327,7 +325,9 @@ COMMENT ON TABLE met.summary_type IS 'The primary unique types of summary level 
 CREATE TABLE met.summary
 (
     id integer NOT NULL GENERATED ALWAYS AS IDENTITY ( INCREMENT 1 START 1 MINVALUE 1 MAXVALUE 2147483647 CACHE 1 ),
-	code met.varcharcodeletnum_lc NOT NULL,
+	--code met.varcharcodeletnum_lc NOT NULL, --delete this??
+	sort_code met.varcharcodeletnum_uc NOT NULL,
+	sort_counter met.intpos NOT NULL DEFAULT 1,
     name character varying NOT NULL,
 	summary_type met.varcharcodesimple_lc NOT NULL,
 	sex met.sex NOT NULL,
@@ -353,9 +353,10 @@ CREATE TABLE met.summary
     CONSTRAINT summary_phenotype FOREIGN KEY (phenotype) REFERENCES met.phenotype(id),
 	CONSTRAINT summary_phenotype_assessment_type FOREIGN KEY (phenotype_assessment_type) REFERENCES met.phenotype_assessment_type(code)
 );
-COMMENT ON TABLE met.summary IS 'Cohorts referred to throughout the database.';
-CREATE UNIQUE INDEX summary_u ON met.summary (code,summary_type);
-CREATE INDEX summary_i ON met.summary (id,code,summary_type,sex,is_meta_analysis,phenotype,phenotype_assessment_type,ancestry_population,country_reference);
+COMMENT ON TABLE met.summary IS 'Summary level datasets referred to throughout the database.';
+--CREATE UNIQUE INDEX summary_u ON met.summary (code,summary_type);
+CREATE UNIQUE INDEX summary_u2 ON met.summary (sort_code,sort_counter,summary_type);
+CREATE INDEX summary_i ON met.summary (id,sort_code,sort_counter,summary_type,sex,is_meta_analysis,phenotype,phenotype_assessment_type,ancestry_population,country_reference);
 
 -- DROP TABLE sec.individual;
 CREATE TABLE sec.individual
@@ -429,6 +430,7 @@ CREATE TABLE sum.gwas
 (
 	summary integer NOT NULL,
 	assembly int NOT NULL, --36,37,38 etc corresponding to the GRCh version number
+	dependent_variable_binary boolean NOT NULL,
 	download_link text,
     filename text,
     platform text,
@@ -436,7 +438,6 @@ CREATE TABLE sum.gwas
     consortium text,
     permissions text,
     uk_biobank boolean,
-    dependent_variable_binary boolean,
     time_entry TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     time_change TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),    
     CONSTRAINT gwas_sum_fk FOREIGN KEY (summary) REFERENCES met.summary(id)

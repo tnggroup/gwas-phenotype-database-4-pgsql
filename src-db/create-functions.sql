@@ -6,14 +6,13 @@
 CREATE OR REPLACE FUNCTION met.get_phenotype
 (
 	phenotype_type met.varcharcodeletnum_lc,
-	phenotype_sort_code met.varcharcodeletnum_uc,
 	phenotype_code met.varcharcodeletnum_lc
 ) RETURNS int AS $$
 DECLARE
     nid int = NULL;
 BEGIN
 	--use $ -notation if there is a collision between argument names and column names
-	SELECT id INTO nid FROM met.phenotype WHERE phenotype_type=$1 AND sort_code = $2 AND code=$3;
+	SELECT id INTO nid FROM met.phenotype WHERE phenotype_type=$1 AND code=$2;
 	
 	RETURN nid;
 END;
@@ -22,7 +21,6 @@ $$ LANGUAGE plpgsql;
 --SET search_path = met, pg_temp;
 ALTER FUNCTION met.get_phenotype(
 	phenotype_type met.varcharcodeletnum_lc,
-	phenotype_sort_code met.varcharcodeletnum_uc,
 	phenotype_code met.varcharcodeletnum_lc)
   OWNER TO "phenodb_coworker";
  
@@ -1809,3 +1807,62 @@ ALTER FUNCTION coh.import_data(
 --SELECT * FROM t_src_individual;
  
  --DELETE FROM coh.covidcns_2021_atest_1_1;
+ 
+ 
+ --DROP FUNCTION met.get_phenotype;
+CREATE OR REPLACE FUNCTION met.get_summary
+(
+	sort_code met.varcharcodeletnum_uc,
+	sort_counter met.intpos,
+	summary_type met.varcharcodesimple_lc
+) RETURNS int AS $$
+DECLARE
+    nid int = NULL;
+BEGIN
+	--use $ -notation if there is a collision between argument names and column names
+	SELECT id INTO nid FROM met.summary WHERE sort_code=$1 AND sort_counter = $2 AND summary_type = $3;
+	RETURN nid;
+END;
+$$ LANGUAGE plpgsql;
+--SECURITY DEFINER
+--SET search_path = met, pg_temp;
+ALTER FUNCTION met.get_summary(
+	sort_code met.varcharcodeletnum_uc,
+	sort_counter met.intpos,
+	summary_type met.varcharcodesimple_lc)
+  OWNER TO "phenodb_coworker";
+ 
+ --HERE!!!! NOT FINISHED!!
+ /*
+CREATE OR REPLACE FUNCTION sum.create_gwas_ignoresert
+(
+	sort_code met.varcharcodeletnum_uc,
+	sort_counter met.intpos,
+	phenotype_code 
+	name character varying,
+	sex met.sex,
+	is_meta_analysis boolean,
+	
+	documentation character varying DEFAULT ''
+) RETURNS int AS $$
+DECLARE
+    nid int = -1;
+BEGIN
+	
+	SELECT 1 id INTO nid FROM met.phenotype WHERE phenotype.code=$2 AND phenotype.phenotype_type=$3;
+	
+	IF nid IS NULL
+	THEN
+		INSERT INTO met.phenotype(name,code,phenotype_type,documentation) VALUES($1,$2,$3,$4) RETURNING id INTO nid;
+	END IF;
+	RETURN nid;
+END;
+$$ LANGUAGE plpgsql;
+ALTER FUNCTION met.create_phenotype_ignoresert(
+	name character varying(100),
+	code met.varcharcodeletnum_lc,
+	phenotype_type met.varcharcodesimple_lc,
+	documentation character varying
+	)
+  OWNER TO "phenodb_coworker"; 
+ */
