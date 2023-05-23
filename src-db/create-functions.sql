@@ -1031,7 +1031,8 @@ CREATE OR REPLACE FUNCTION coh._create_current_assessment_item_variable_select_q
 (
 	cohort int,
 	cohortinstance int,
-	assessment_item_variable int []
+	assessment_item_variable int [],
+	join_sec boolean = FALSE
 ) RETURNS text AS $$
 DECLARE
     itable int = 1;
@@ -1056,6 +1057,12 @@ BEGIN
 		itable:=itable+1;
 	END LOOP;
 	string_query_from:=string_query_from || ') d';
+
+	IF join_sec 
+		THEN 
+			string_query_from:=string_query_from || ' LEFT OUTER JOIN sec.individual_cohortinstance_identifier ici ON d._individual_identifier=ici.identifier AND ici.cohortinstance=' || cohortinstance || '';
+			string_query_columns:=string_query_columns || ',ici.identifier_cohort _individual_identifier_cohort';
+		END IF;
 
 	FOR r IN SELECT ci.* FROM (SELECT UNNEST($3) assessment_item_variable, generate_subscripts($3,1) rn) aiv INNER JOIN met.cohort_inventory ci ON aiv.assessment_item_variable=ci.assessment_item_variable_id AND $1=ci.cohort_id AND $2=ci.cohortinstance_id ORDER BY aiv.rn
 	LOOP
@@ -1086,23 +1093,34 @@ SET search_path = coh, pg_temp;
 ALTER FUNCTION coh._create_current_assessment_item_variable_select_query(
 	cohort int,
 	cohortinstance int,
-	assessment_item_variable int []
+	assessment_item_variable int [],
+	join_sec boolean
 	)
   OWNER TO "phenodb_owner";
- 
+
+/*SELECT * FROM coh._create_current_assessment_item_variable_select_query(
+ 1,
+ 34,
+met.get_assessment_item_variables(
+	assessment_code => 'covidcnsdem',
+	assessment_version_code => '1'
+), 
+TRUE)
+ */
  
 
 CREATE OR REPLACE FUNCTION coh._create_current_assessment_item_variable_tview
 (
 	cohort int,
 	cohortinstance int,
-	assessment_item_variable int []
+	assessment_item_variable int [],
+	join_sec boolean = FALSE
 ) RETURNS text AS $$
 DECLARE
     string_query_full text:='';
 BEGIN
 	DROP VIEW IF EXISTS t_export_data CASCADE;
-	string_query_full:=coh._create_current_assessment_item_variable_select_query(cohort,cohortinstance,assessment_item_variable);
+	string_query_full:=coh._create_current_assessment_item_variable_select_query(cohort,cohortinstance,assessment_item_variable,join_sec);
 	--RAISE NOTICE 'string_query_full: %',string_query_full;	
 	EXECUTE string_query_full;
 	GRANT SELECT ON t_export_data TO "phenodb_user";
@@ -1114,7 +1132,8 @@ SET search_path = coh, pg_temp;
 ALTER FUNCTION coh._create_current_assessment_item_variable_tview(
 	cohort int,
 	cohortinstance int,
-	assessment_item_variable int []
+	assessment_item_variable int [],
+	join_sec boolean
 	)
   OWNER TO "phenodb_owner";
 
@@ -1126,14 +1145,13 @@ ALTER FUNCTION coh._create_current_assessment_item_variable_tview(
 --||
 --met.get_assessment_item_variables('cfq11','covidcns',ARRAY['correctworddifficultfind','feelweakweek','startsincecovid19questionrequi'])
 --);
- /*
-SELECT * FROM coh._create_current_assessment_item_variable_tview(1,1,met.get_assessment_item_variables(
+ /*SELECT * FROM coh._create_current_assessment_item_variable_tview(1,34,met.get_assessment_item_variables(
 	assessment_code => 'covidcnsdem',
 	assessment_version_code => '1'
 	--assessment_variable_code_original => ARRAY['dem_1.dob_age','dem_1.irish_numeric']
-));
-SELECT * FROM t_export_data
-*/
+), TRUE);
+SELECT * FROM t_export_data*/
+
 
 
 CREATE OR REPLACE FUNCTION coh.create_current_assessment_item_variable_tview
@@ -1144,7 +1162,8 @@ CREATE OR REPLACE FUNCTION coh.create_current_assessment_item_variable_tview
 	assessment_version_code met.varcharcodeletnum_lc,
 	assessment_item_code met.varcharcodeletnum_lc[] DEFAULT NULL,
 	assessment_variable_code_full met.varcharcodeletnum_lc[] DEFAULT NULL,
-	assessment_variable_code_original character varying(100)[] DEFAULT NULL
+	assessment_variable_code_original character varying(100)[] DEFAULT NULL,
+	join_sec boolean = FALSE
 ) RETURNS text AS $$
 DECLARE
     string_query_full text:='';
@@ -1158,7 +1177,8 @@ BEGIN
 			assessment_item_code => $5,
 			assessment_variable_code_full => $6,
 			assessment_variable_code_original => $7
-				)
+				),
+			join_sec => $8
 	);
 	RETURN string_query_full;
 END;
@@ -1172,21 +1192,22 @@ ALTER FUNCTION coh.create_current_assessment_item_variable_tview(
 	assessment_version_code met.varcharcodeletnum_lc,
 	assessment_item_code met.varcharcodeletnum_lc[],
 	assessment_variable_code_full met.varcharcodeletnum_lc[],
-	assessment_variable_code_original character varying(100)[]
+	assessment_variable_code_original character varying(100)[],
+	join_sec boolean
 	)
   OWNER TO "phenodb_coworker";
- /*
-SELECT * FROM coh.create_current_assessment_item_variable_tview(
+/*SELECT * FROM coh.create_current_assessment_item_variable_tview(
 	cohort_code => 'covidcns',
 	instance_code => '2023',
 	assessment_code => 'covidcnsdem',
-	assessment_version_code => '1'
+	assessment_version_code => '1',
+	join_sec => TRUE
 --	assessment_item_code => ARRAY['followingqualificationsdoyou','ethnicorigin']
 --	--assessment_variable_code_full => NULL,
 --	--assessment_variable_code_original => NULL
 );
-SELECT * FROM t_export_data;
-*/
+SELECT * FROM t_export_data;*/
+
 /*
 SELECT * FROM coh.create_current_assessment_item_variable_tview(
 	cohort_code => 'covidcns',
