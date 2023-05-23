@@ -41,16 +41,24 @@ SELECT * FROM t_export_data;
 CREATE TEMP TABLE mydem AS
 	SELECT * FROM t_export_data;
 
-/*
+
 SELECT * FROM coh.create_current_assessment_item_variable_tview(
 	cohort_code => 'covidcns',
 	instance_code => '2023',
 	assessment_code => 'idpukbb',
-	assessment_version_code => '2022',
-	assessment_item_code => ARRAY['visit','qc','idpt1sienax','idp1first','idp1fastrois']
+	assessment_version_code => '2022'
+	--assessment_item_code => ARRAY['visit','qc','idpt1sienax','idp1first','idp1fastrois']
 	);
 SELECT * FROM t_export_data;
-*/
+
+SELECT * FROM coh.create_current_assessment_item_variable_tview(
+	cohort_code => 'covidcns',
+	instance_code => '2023',
+	assessment_code => 'fsidpukbb',
+	assessment_version_code => '2022'
+	);
+SELECT * FROM t_export_data;
+
 SELECT * FROM coh.create_current_assessment_item_variable_tview(
 	cohort_code => 'covidcns',
 	instance_code => '2023',
@@ -65,4 +73,8 @@ CREATE TEMP TABLE myphq9 AS
 	
 SELECT * FROM mydem INNER JOIN myphq9
 ON mydem._stage=myphq9._stage AND mydem._individual_identifier=myphq9._individual_identifier;
+
+SELECT ici.identifier_cohort, t_export_data.* FROM t_export_data INNER JOIN sec.individual_cohortinstance_identifier ici 
+ON t_export_data._individual_identifier = ici.identifier;
+
 
