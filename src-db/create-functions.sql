@@ -1408,7 +1408,7 @@ BEGIN
 	RAISE NOTICE 'var_cohortinstance_id %',var_cohortinstance_id;
 	RAISE NOTICE 'var_assessment_id %',var_cohortinstance_id;
 	
-	DROP TABLE IF EXISTS t_prepare_import_data_settings CASCADE;
+	DROP TABLE IF EXISTS t_prepare_import_data_settings; --CASCADE;
 	CREATE TEMP TABLE t_prepare_import_data_settings AS
 	SELECT
 		var_cohortinstance_id cohortinstance_id,
@@ -1447,7 +1447,7 @@ BEGIN
 	
 	IF varable_annotation_table_name IS NOT NULL
 	THEN
-		DROP TABLE IF EXISTS t_import_data_assessment_variable_annotation CASCADE;
+		DROP TABLE IF EXISTS t_import_data_assessment_variable_annotation; --CASCADE;
 		string_query:= 'CREATE TEMP TABLE IF NOT EXISTS t_import_data_assessment_variable_annotation AS SELECT * FROM ' || varable_annotation_table_name ;
 		EXECUTE string_query;
 	/*
@@ -1463,7 +1463,7 @@ BEGIN
 
 	IF item_annotation_table_name IS NOT NULL
 	THEN
-		DROP TABLE IF EXISTS t_import_data_assessment_item_annotation CASCADE;
+		DROP TABLE IF EXISTS t_import_data_assessment_item_annotation; --CASCADE;
 		string_query:= 'CREATE TEMP TABLE IF NOT EXISTS t_import_data_assessment_item_annotation AS SELECT * FROM ' || item_annotation_table_name ;
 		EXECUTE string_query;
 	/*
@@ -1475,7 +1475,7 @@ BEGIN
 	END IF;
 
 	--TODO - ADD CUSTOM SCHEMA CHOICE 
-	DROP VIEW IF EXISTS t_import_data_meta CASCADE;
+	DROP VIEW IF EXISTS t_import_data_meta; --CASCADE;
 	CREATE OR REPLACE TEMP VIEW t_import_data_meta AS
 	SELECT
 		LOWER(van.item_code) assessment_item_code,
@@ -1505,7 +1505,7 @@ BEGIN
 	RAISE NOTICE 'nrows t_import_data_meta (THIS SHOULD BE POSITIVE - OTHERWISE YOU MAY HAVE PRIVILEGE OR PATH PROBLEMS) %',toreturn;
 	
 	--TODO: The duplicate ordering is fishy
-	DROP VIEW IF EXISTS t_import_data_meta_selected CASCADE;
+	DROP VIEW IF EXISTS t_import_data_meta_selected; --CASCADE;
 	CREATE OR REPLACE TEMP VIEW t_import_data_meta_selected AS
 	WITH mord AS(SELECT * FROM t_import_data_meta ORDER BY data_type_check DESC, variable_original_descriptor_check DESC, ordinal_position)
 	SELECT DISTINCT ON (mord.assessment_item_code, mord.assessment_item_variable_code, mord.column_name)
@@ -1643,7 +1643,7 @@ BEGIN
 	--fallback/template annotation - --TODO - SEPARATE THE ANNOTATION TABLES FROM THE STATS-VIEWS!
 	IF NOT EXISTS (SELECT * FROM information_schema.tables WHERE tables.table_catalog='phenodb' AND tables.table_name='t_import_data_assessment_item_annotation') -- AND tables.table_type='LOCAL_TEMPORARY' AND NOT EXISTS (SELECT FROM t_import_data_assessment_item_annotation)
 	THEN
-		DROP TABLE IF EXISTS t_import_data_assessment_item_annotation CASCADE;
+		DROP TABLE IF EXISTS t_import_data_assessment_item_annotation; --CASCADE;
 		CREATE TEMP TABLE t_import_data_assessment_item_annotation AS
 		SELECT istats.assessment_item_code item_code,
 		--string_assessment_main_type assessment_type,
