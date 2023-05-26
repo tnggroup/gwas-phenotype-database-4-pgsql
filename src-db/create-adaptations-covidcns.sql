@@ -13,6 +13,20 @@ CREATE SCHEMA coh_covidcns
 COMMENT ON SCHEMA coh_covidcns
     IS 'Schema for the COVID-CNS cohort, for holding private procedures.';
 
+
+REVOKE ALL ON SCHEMA coh_covidcns FROM "phenodb_user";
+GRANT ALL ON SCHEMA coh_covidcns TO "phenodb_user"; -- WITH GRANT OPTION;
+
+REVOKE ALL ON ALL TABLES IN SCHEMA coh_covidcns FROM "phenodb_user";
+ALTER DEFAULT PRIVILEGES IN SCHEMA coh_covidcns
+GRANT SELECT ON TABLES TO "phenodb_user";
+GRANT SELECT ON ALL TABLES IN SCHEMA coh_covidcns TO "phenodb_user";
+
+REVOKE ALL ON ALL SEQUENCES IN SCHEMA coh_covidcns FROM "phenodb_user";
+ALTER DEFAULT PRIVILEGES IN SCHEMA coh_covidcns
+GRANT SELECT, UPDATE, USAGE ON SEQUENCES TO "phenodb_user";
+GRANT SELECT, UPDATE, USAGE ON ALL SEQUENCES IN SCHEMA coh_covidcns TO "phenodb_user";
+
  
  -- metadata entries
 
