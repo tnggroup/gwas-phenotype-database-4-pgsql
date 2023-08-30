@@ -47,7 +47,6 @@ SELECT * FROM coh.create_current_assessment_item_variable_tview(
 	instance_code => '2023',
 	assessment_code => 'idpukbb',
 	assessment_version_code => '2022'
-	--assessment_item_code => ARRAY['visit','qc','idpt1sienax','idp1first','idp1fastrois']
 	);
 SELECT * FROM t_export_data;
 
@@ -56,7 +55,6 @@ SELECT * FROM coh.create_current_assessment_item_variable_tview(
 	instance_code => '2023',
 	assessment_code => 'idpukbbnontab',
 	assessment_version_code => '2022'
-	--assessment_item_code => ARRAY['bbidpallaligntot1']
 	);
 SELECT ici.identifier_cohort, t_export_data.* FROM t_export_data INNER JOIN sec.individual_cohortinstance_identifier ici 
 ON t_export_data._individual_identifier = ici.identifier
