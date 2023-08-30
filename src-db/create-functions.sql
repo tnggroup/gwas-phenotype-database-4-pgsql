@@ -1062,7 +1062,11 @@ BEGIN
 		THEN 
 			string_query_from:=string_query_from || ' LEFT OUTER JOIN sec.individual_cohortinstance_identifier ici ON d._individual_identifier=ici.identifier AND ici.cohortinstance=' || cohortinstance || '';
 			string_query_columns:=string_query_columns || ',ici.identifier_cohort _individual_identifier_cohort';
-		END IF;
+	END IF;
+
+	--add participant (case/control) status
+	string_query_from:=string_query_from || ' LEFT OUTER JOIN sec.individual_cohortinstance_identifier ici2 ON d._individual_identifier=ici2.identifier AND ici2.cohortinstance=' || cohortinstance || '';
+	string_query_columns:=string_query_columns || ',ici2.participant_type _participant_type';
 
 	FOR r IN SELECT ci.* FROM (SELECT UNNEST($3) assessment_item_variable, generate_subscripts($3,1) rn) aiv INNER JOIN met.cohort_inventory ci ON aiv.assessment_item_variable=ci.assessment_item_variable_id AND $1=ci.cohort_id AND $2=ci.cohortinstance_id ORDER BY aiv.rn
 	LOOP

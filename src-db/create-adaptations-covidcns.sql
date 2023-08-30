@@ -27,6 +27,26 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA coh_covidcns
 GRANT SELECT, UPDATE, USAGE ON SEQUENCES TO "phenodb_user";
 GRANT SELECT, UPDATE, USAGE ON ALL SEQUENCES IN SCHEMA coh_covidcns TO "phenodb_user";
 
+
+CREATE SCHEMA sec_covidcns
+    AUTHORIZATION phenodb;
+
+COMMENT ON SCHEMA sec_covidcns
+    IS 'Secure schema for the COVID-CNS cohort, for holding mapped data relating to the administrative web database which contains individual identifieable data.';
+
+REVOKE ALL ON SCHEMA sec_covidcns FROM "phenodb_coworker";
+GRANT ALL ON SCHEMA sec_covidcns TO "phenodb_coworker"; -- WITH GRANT OPTION;
+
+REVOKE ALL ON ALL TABLES IN SCHEMA sec_covidcns FROM "phenodb_coworker";
+ALTER DEFAULT PRIVILEGES IN SCHEMA sec_covidcns
+GRANT SELECT ON TABLES TO "phenodb_coworker";
+GRANT SELECT ON ALL TABLES IN SCHEMA sec_covidcns TO "phenodb_coworker";
+
+REVOKE ALL ON ALL SEQUENCES IN SCHEMA sec_covidcns FROM "phenodb_coworker";
+ALTER DEFAULT PRIVILEGES IN SCHEMA sec_covidcns
+GRANT SELECT, UPDATE, USAGE ON SEQUENCES TO "phenodb_coworker";
+GRANT SELECT, UPDATE, USAGE ON ALL SEQUENCES IN SCHEMA sec_covidcns TO "phenodb_coworker";
+
  
  -- metadata entries
 
@@ -407,38 +427,88 @@ FROM met.select_assessment_item_meta(
 ALTER VIEW coh_covidcns.dictionary_items_simple OWNER TO "phenodb_coworker";
 
 
-
+--Admin Web Database sync
 /*
---this does not work
+--this works now 
 CREATE EXTENSION IF NOT EXISTS dblink;
-SELECT * FROM dblink('dbname=covid-cns user=postgres password=XXXXX','SELECT id,kit_id FROM participants') AS tb2(id int, kit_id int)
+SELECT * FROM dblink('dbname=covidcnsdb user=postgres password=XXXXX','SELECT id,kit_id FROM "covid-cns".participants') AS tb2(id int, kit_id int)
 SELECT * FROM dblink_connect_u('covidcns_web_db', 'dbname=covid-cns user=postgres password=XXXXX')
+*/
 
---this does not work either
+--this works now also
 CREATE EXTENSION IF NOT EXISTS postgres_fdw;
+
+-- list previous fdw servers
+select 
+    srvname as name, 
+    srvowner::regrole as owner, 
+    fdwname as wrapper, 
+    srvoptions as options
+from pg_foreign_server
+join pg_foreign_data_wrapper w on w.oid = srvfdw;
+
+DROP SERVER IF EXISTS covidcns_web_db CASCADE;
 
 CREATE SERVER covidcns_web_db
 FOREIGN DATA WRAPPER postgres_fdw
-OPTIONS (host 'localhost', dbname 'covid-cns', port '5432');
+OPTIONS (host 'localhost', dbname 'covidcnsdb', port '5432');
 
 CREATE USER MAPPING FOR postgres
 SERVER covidcns_web_db
 OPTIONS (user 'postgres', password 'XXXXXX');
 
-IMPORT FOREIGN SCHEMA covid_cns
-FROM SERVER covidcns_web_db INTO coh_covidcns;
+IMPORT FOREIGN SCHEMA "covid-cns"
+FROM SERVER covidcns_web_db INTO sec_covidcns;
 
-CREATE OR REPLACE PROCEDURE coh_covidcns.update_from_website_database()
+--update individual and individual_cohortinstance_identifier tables
+
+--kits with ID's not in database
+SELECT * FROM sec_covidcns.participants 
+	LEFT OUTER JOIN sec_covidcns.kits ON participants.kit_id = kits.id
+	LEFT OUTER JOIN sec.individual_cohortinstance_identifier ici ON ici.cohortinstance = met.get_cohortinstance('covidcns','2023') AND ici.identifier_cohort = kits.identifier
+WHERE ici.individual IS NULL;
+
+-- update individual table
+UPDATE sec.individual SET name = participants.first_name, surname = participants.last_name  
+FROM sec_covidcns.participants 
+	LEFT OUTER JOIN sec_covidcns.kits ON participants.kit_id = kits.id
+	LEFT OUTER JOIN sec.individual_cohortinstance_identifier ici ON ici.cohortinstance = met.get_cohortinstance('covidcns','2023') AND ici.identifier_cohort = kits.identifier
+WHERE ici.individual = individual.id
+;
+
+-- update individual_cohortinstance_identifier table
+UPDATE sec.individual_cohortinstance_identifier SET 
+	country = 'GB', 
+	email = participants.email, 
+	phone_other=participants.phone_number,
+	street=participants.address_street_name,
+	city=participants.address_city,
+	province=participants.address_county,
+	postal_code=participants.address_post_code,
+	nhs_id=participants.nhs_id,
+	participant_type=participants.type,
+	time_entry = participants.created_at,
+	time_change = participants.updated_at
+FROM sec_covidcns.participants 
+	LEFT OUTER JOIN sec_covidcns.kits ON participants.kit_id = kits.id
+	LEFT OUTER JOIN sec.individual_cohortinstance_identifier ici ON ici.cohortinstance = met.get_cohortinstance('covidcns','2023') AND ici.identifier_cohort = kits.identifier
+WHERE ici.individual = individual_cohortinstance_identifier.individual AND ici.cohortinstance = individual_cohortinstance_identifier.cohortinstance
+;
+
+/*
+CREATE OR REPLACE PROCEDURE sec_covidcns.update_from_website_database()
 LANGUAGE plpgsql
 AS $$
 BEGIN
 	-- IMPORT participants
+	--SELECT * FROM dblink('dbname=covid-cns','SELECT id, kit_id FROM participants')
+   	--AS tb2(id int, kit_id int);
 	
-	SELECT * FROM dblink('dbname=covid-cns','SELECT id, kit_id FROM participants')
-   	AS tb2(id int, kit_id int);
+	
 	
 END;
 $$
 */
+
 
 

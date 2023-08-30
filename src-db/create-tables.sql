@@ -403,6 +403,10 @@ CREATE TABLE sec.individual_cohortinstance_identifier
 COMMENT ON TABLE sec.individual_cohortinstance_identifier IS 'Individual person identifiers for use in database tables or elsewhere. These should be deleted to sever any associations with protected individual data across cohorts.';
 CREATE UNIQUE INDEX individual_cohortinstance_identifier_u ON sec.individual_cohortinstance_identifier (individual,cohortinstance,identifier,identifier_cohort);
 
+ALTER TABLE sec.individual_cohortinstance_identifier ADD COLUMN IF NOT EXISTS nhs_id character varying(20);
+ALTER TABLE sec.individual_cohortinstance_identifier ADD COLUMN IF NOT EXISTS participant_type character varying(200);
+
+
 COMMIT;
 
 
