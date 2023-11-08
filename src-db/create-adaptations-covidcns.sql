@@ -397,6 +397,16 @@ SELECT met.create_assessment_ignoresert(
 	documentation => ''
 	);
 
+SELECT met.create_assessment_ignoresert(
+	assessment_type =>'imaging',
+	assessment_code => 'radrep',
+	assessment_version_code => '1',
+	name => 'Radiology report',
+	abbreviation => 'RADIOLOGY REPORT',
+	reference_id => met.get_reference_by_doi('10.1136/bmj.m3871'),
+	documentation => 'A radiology report type instrument.'
+	);
+
 
 -- COVID-CNS Data dictionary views
 CREATE OR REPLACE VIEW coh_covidcns.dictionary_variables

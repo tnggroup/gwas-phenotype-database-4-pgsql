@@ -1206,9 +1206,6 @@ ALTER FUNCTION coh.create_current_assessment_item_variable_tview(
 	assessment_code => 'covidcnsdem',
 	assessment_version_code => '1',
 	join_sec => TRUE
---	assessment_item_code => ARRAY['followingqualificationsdoyou','ethnicorigin']
---	--assessment_variable_code_full => NULL,
---	--assessment_variable_code_original => NULL
 );
 SELECT * FROM t_export_data;*/
 
@@ -1216,8 +1213,8 @@ SELECT * FROM t_export_data;*/
 SELECT * FROM coh.create_current_assessment_item_variable_tview(
 	cohort_code => 'covidcns',
 	instance_code => '2023',
-	assessment_code => 'idpukbb',
-	assessment_version_code => '2022'
+	assessment_code => 'radrep',
+	assessment_version_code => '1'
 --	assessment_item_code => ARRAY['followingqualificationsdoyou','ethnicorigin']
 --	--assessment_variable_code_full => NULL,
 --	--assessment_variable_code_original => NULL
@@ -1298,7 +1295,7 @@ ALTER FUNCTION met.select_assessment_item_variable_meta(
 SELECT * FROM met.select_assessment_item_variable_meta(
 	cohort_code => 'covidcns',
 	instance_code => '2023',
-	assessment_code => 'covidcnsdem',
+	assessment_code => 'radrep',
 	assessment_version_code => '1'
 --	assessment_item_code => ARRAY['followingqualificationsdoyou','ethnicorigin']
 --	--assessment_variable_code_full => NULL,
@@ -1371,7 +1368,7 @@ ALTER FUNCTION met.select_assessment_item_meta(
 SELECT * FROM met.select_assessment_item_meta(
 	cohort_code => 'covidcns',
 	instance_code => '2023',
-	assessment_code => 'covidcnsdem',
+	assessment_code => 'radrep',
 	assessment_version_code => '1'
 --	assessment_item_code => ARRAY['followingqualificationsdoyou','ethnicorigin']
 --	--assessment_variable_code_full => NULL,
@@ -1385,7 +1382,49 @@ SELECT * FROM met.select_assessment_item_meta(
 	instance_code => '2023'
 );
 */
+ 
+CREATE OR REPLACE FUNCTION coh.create_template_temporary_variable_annotation_table
+(
+	schema_name met.varcharcodesimple,
+	table_name met.varcharcodesimple
+)
+RETURNS int AS $$
+DECLARE
+    toreturn text = NULL;
+   	string_query text;
+BEGIN
+	
+	DROP TABLE IF EXISTS t_import_data_assessment_variable_annotation; --CASCADE;
+	CREATE TEMP TABLE IF NOT EXISTS t_import_data_assessment_variable_annotation AS
+	SELECT
+	column_name,
+	'' variable_code,
+	column_name variable_original_descriptor,
+	column_name variable_label,
+	ordinal_position variable_index,
+	data_type variable_data_type,
+	regexp_replace(LOWER(column_name),'[^abcdefghijklmnopqrstuvwxyz1234567890]','','g') item_code,
+	'' variable_documentation,
+	NULL variable_unit
+	FROM 
+	information_schema.tables
+	INNER JOIN information_schema.columns ON columns.table_catalog=tables.table_catalog AND columns.table_schema=tables.table_schema AND columns.table_name=tables.table_name
+	WHERE tables.table_catalog='phenodb' AND tables.table_schema=LOWER($1) AND tables.table_name=LOWER($2);
+	GRANT ALL ON TABLE t_import_data_assessment_variable_annotation TO "phenodb_coworker";
 
+	RETURN 1;
+END;
+$$ LANGUAGE plpgsql;
+ALTER FUNCTION coh.create_template_temporary_variable_annotation_table(
+	schema_name met.varcharcodesimple,
+	table_name met.varcharcodesimple
+	)
+  OWNER TO "phenodb_coworker";
+ 
+--SELECT * FROM coh.create_template_temporary_variable_annotation_table('tng2215','covid_cns_liverpool_xnat_report');
+--SELECT * FROM t_import_data_assessment_variable_annotation;
+
+--This now needs a variable annotation table
 CREATE OR REPLACE FUNCTION coh.prepare_import
 (
 	cohort_code met.varcharcodeletnum_lc,
@@ -1394,7 +1433,7 @@ CREATE OR REPLACE FUNCTION coh.prepare_import
 	assessment_version_code met.varcharcodeletnum_lc,
 	table_name met.varcharcodesimple,
 	cohort_id_column_name met.varcharcodesimple DEFAULT NULL,
-	varable_annotation_table_name met.varcharcodesimple DEFAULT NULL,
+	variable_annotation_table_name met.varcharcodesimple DEFAULT NULL,
 	item_annotation_table_name met.varcharcodesimple DEFAULT NULL
 ) RETURNS int AS $$
 DECLARE
@@ -1412,7 +1451,7 @@ BEGIN
 	RAISE NOTICE 'var_cohortinstance_id %',var_cohortinstance_id;
 	RAISE NOTICE 'var_assessment_id %',var_cohortinstance_id;
 	
-	DROP TABLE IF EXISTS t_prepare_import_data_settings; --CASCADE;
+	DROP TABLE IF EXISTS t_prepare_import_data_settings CASCADE;
 	CREATE TEMP TABLE t_prepare_import_data_settings AS
 	SELECT
 		var_cohortinstance_id cohortinstance_id,
@@ -1449,10 +1488,10 @@ BEGIN
 	string_query:= 'GRANT ALL ON TABLE ' || table_name || ' TO "phenodb_coworker" ';
 	EXECUTE string_query;
 	
-	IF varable_annotation_table_name IS NOT NULL
+	IF variable_annotation_table_name IS NOT NULL
 	THEN
 		DROP TABLE IF EXISTS t_import_data_assessment_variable_annotation; --CASCADE;
-		string_query:= 'CREATE TEMP TABLE IF NOT EXISTS t_import_data_assessment_variable_annotation AS SELECT * FROM ' || varable_annotation_table_name ;
+		string_query:= 'CREATE TEMP TABLE IF NOT EXISTS t_import_data_assessment_variable_annotation AS SELECT * FROM ' || variable_annotation_table_name ;
 		EXECUTE string_query;
 	/*
 	ELSE
@@ -1486,7 +1525,7 @@ BEGIN
 		LOWER(van.variable_code) assessment_item_variable_code,
 		van.variable_original_descriptor,
 		van.variable_label,
-		van.index variable_index,
+		van.variable_index,
 		van.variable_documentation,
 		van.variable_unit,
 		van.variable_data_type,
@@ -1501,7 +1540,7 @@ BEGIN
 	INNER JOIN t_prepare_import_data_settings isettings ON TRUE
 	INNER JOIN information_schema.tables ON tables.table_catalog='phenodb' AND tables.table_name=LOWER(isettings.table_name)
 	INNER JOIN pg_namespace ns ON ns.oid = pg_my_temp_schema() AND tables.table_schema = ns.nspname --tables.table_type='LOCAL TEMPORARY'
-	INNER JOIN information_schema.columns ON columns.table_catalog=tables.table_catalog AND columns.table_schema=tables.table_schema AND columns.table_name=tables.table_name AND columns.column_name=LOWER(van.column_name)
+	INNER JOIN information_schema.columns ON columns.table_catalog=tables.table_catalog AND columns.table_schema=tables.table_schema AND columns.table_name=tables.table_name AND columns.column_name=van.column_name
 	LEFT OUTER JOIN met.select_cohort_inventory() inv ON inv.cohortinstance_id=isettings.cohortinstance_id AND inv.assessment_id=isettings.assessment_id AND LOWER(van.item_code)=inv.assessment_item_code AND (LOWER(van.variable_code) = inv.assessment_item_variable_code OR (van.variable_code IS NULL AND inv.assessment_item_variable_code IS NULL))
 	ORDER BY assessment_id,cohortinstance_id,assessment_item_code,assessment_item_variable_code;
 	GRANT SELECT ON t_import_data_meta TO "phenodb_coworker";
@@ -1568,7 +1607,7 @@ ALTER FUNCTION coh.prepare_import(
 	assessment_version_code met.varcharcodeletnum_lc,
 	table_name met.varcharcodesimple,
 	cohort_id_column_name met.varcharcodesimple,
-	varable_annotation_table_name met.varcharcodesimple,
+	variable_annotation_table_name met.varcharcodesimple,
 	item_annotation_table_name met.varcharcodesimple
 	)
   OWNER TO "phenodb_coworker";
@@ -1724,7 +1763,7 @@ BEGIN
 				variable_original_descriptor => CAST(r.variable_original_descriptor AS character varying),
 				variable_index => CAST(r.variable_index AS int),
 				variable_name => CASE 
-									WHEN r.variable_label IS NOT NULL THEN r.variable_label
+									WHEN r.variable_label IS NOT NULL THEN CAST(r.variable_label AS character varying)
 									ELSE CAST(r.assessment_item_variable_code AS character varying) END,
 				variable_unit => CAST(r.variable_unit AS character varying),
 				documentation => CASE 
