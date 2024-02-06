@@ -47,6 +47,20 @@ CREATE ROLE phenodb_coworker WITH
 COMMENT ON ROLE phenodb_coworker IS 'Can read protected data in the phenotype database and write to designated areas.';
 GRANT phenodb_coworker TO phenodb_owner;
 
+
+-- Role: phenodb_superuser
+-- DROP ROLE phenodb_superuser;
+CREATE ROLE phenodb_superuser WITH
+  NOLOGIN
+  NOSUPERUSER
+  INHERIT
+  NOCREATEDB
+  NOCREATEROLE
+  NOREPLICATION;
+COMMENT ON ROLE phenodb_superuser IS 'Can read non-protected data, plus selectd individual identifiable variables such as study ID, in the phenotype database and write to designated areas.';
+GRANT phenodb_superuser TO phenodb_coworker;
+
+
 -- Role: phenodb_user
 -- DROP ROLE phenodb_user;
 CREATE ROLE phenodb_user WITH
@@ -58,6 +72,7 @@ CREATE ROLE phenodb_user WITH
   NOREPLICATION;
 COMMENT ON ROLE phenodb_user IS 'Can read non-protected data in the phenotype database and write to designated areas.';
 GRANT phenodb_user TO phenodb_coworker;
+GRANT phenodb_user TO phenodb_superuser;
 
 -- Role: phenodb_reader
 -- DROP ROLE phenodb_reader;

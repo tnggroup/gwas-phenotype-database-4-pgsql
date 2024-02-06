@@ -1026,6 +1026,28 @@ SELECT * FROM sec._create_cohortinstance_individual
 );
  */
  
+CREATE OR REPLACE FUNCTION coh._create_current_assessment_item_variable_controlled_tview
+(
+	cohortinstance int
+) RETURNS text AS $$
+DECLARE
+    string_query_full text:='';
+BEGIN
+	DROP VIEW IF EXISTS t_export_data_controlled CASCADE;
+	string_query_full:='CREATE OR REPLACE TEMP VIEW t_export_data_controlled AS SELECT ici.identifier, ici.cohortinstance, ici.identifier_cohort, ici.participant_type FROM sec.individual_cohortinstance_identifier ici WHERE ici.cohortinstance=' || cohortinstance || ';';
+	--RAISE NOTICE 'string_query_full: %',string_query_full;	
+	EXECUTE string_query_full;
+	GRANT SELECT ON t_export_data_controlled TO "phenodb_user";
+	RETURN string_query_full;
+END;
+$$ LANGUAGE plpgsql
+--SECURITY DEFINER -- This is the point of this function compared to the other view
+SET search_path = coh, pg_temp;
+ALTER FUNCTION coh._create_current_assessment_item_variable_controlled_tview(
+	cohortinstance int
+	)
+  OWNER TO "phenodb_owner";
+ 
 
 CREATE OR REPLACE FUNCTION coh._create_current_assessment_item_variable_select_query
 (
@@ -1060,7 +1082,7 @@ BEGIN
 
 	IF join_sec 
 		THEN 
-			string_query_from:=string_query_from || ' LEFT OUTER JOIN sec.individual_cohortinstance_identifier ici ON d._individual_identifier=ici.identifier AND ici.cohortinstance=' || cohortinstance || '';
+			string_query_from:=string_query_from || ' LEFT OUTER JOIN t_export_data_controlled ici ON d._individual_identifier=ici.identifier AND ici.cohortinstance=' || cohortinstance || '';
 			string_query_columns:=string_query_columns || ',ici.identifier_cohort _individual_identifier_cohort';
 	END IF;
 
@@ -1124,6 +1146,7 @@ DECLARE
     string_query_full text:='';
 BEGIN
 	DROP VIEW IF EXISTS t_export_data CASCADE;
+	PERFORM coh._create_current_assessment_item_variable_controlled_tview(cohortinstance);
 	string_query_full:=coh._create_current_assessment_item_variable_select_query(cohort,cohortinstance,assessment_item_variable,join_sec);
 	--RAISE NOTICE 'string_query_full: %',string_query_full;	
 	EXECUTE string_query_full;
