@@ -1223,14 +1223,25 @@ ALTER FUNCTION coh.create_current_assessment_item_variable_tview(
 	join_sec boolean
 	)
   OWNER TO "phenodb_coworker";
-/*SELECT * FROM coh.create_current_assessment_item_variable_tview(
+/*
+SELECT * FROM coh.create_current_assessment_item_variable_tview(
 	cohort_code => 'covidcns',
 	instance_code => '2023',
 	assessment_code => 'covidcnsdem',
 	assessment_version_code => '1',
 	join_sec => TRUE
 );
-SELECT * FROM t_export_data;*/
+SELECT * FROM t_export_data;
+
+SELECT * FROM coh.create_current_assessment_item_variable_tview(
+	cohort_code => 'covidcns',
+	instance_code => '2023',
+	assessment_code => 'radrep',
+	assessment_version_code => '1'
+	--join_sec => TRUE
+);
+SELECT * FROM t_export_data;
+*/
 
 /*
 SELECT * FROM coh.create_current_assessment_item_variable_tview(
