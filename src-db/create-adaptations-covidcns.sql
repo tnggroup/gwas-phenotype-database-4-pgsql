@@ -102,6 +102,16 @@ SELECT met.create_assessment_ignoresert(
 	documentation => ''
 	);
 
+SELECT met.create_assessment_ignoresert(
+	assessment_type =>'questionnaire',
+	assessment_code => 'covidcnsadscreener',
+	assessment_version_code => '1',
+	name => 'COVID-CNS Screener Lifetime A&D',
+	abbreviation => 'CNS AD',
+	reference_id => met.get_reference_by_doi('10.1136/bmj.m3871'), --NEEDS REFERENCE
+	documentation => ''
+	);
+
 INSERT INTO met.reference(doi,pmid,year,documentation) VALUES('10.1001/jama.252.14.1905','6471323',1984,'Detecting alcoholism. The CAGE questionnaire');
 SELECT met.create_assessment_ignoresert(
 	assessment_type =>'questionnaire',
@@ -134,7 +144,15 @@ SELECT met.create_assessment_ignoresert(
 	documentation => ''
 	);
 
-
+SELECT met.create_assessment_ignoresert(
+	assessment_type =>'questionnaire',
+	assessment_code => 'covidcnscovid19',
+	assessment_version_code => '1',
+	name => 'COVID-19: Symptoms and Treatment',
+	abbreviation => 'COVID19',
+	reference_id => met.get_reference_by_doi('10.1136/bmj.m3871'),
+	documentation => ''
+	);
 
 SELECT met.create_assessment_ignoresert(
 	assessment_type =>'questionnaire',
@@ -179,6 +197,16 @@ SELECT met.create_assessment_ignoresert(
 
 SELECT met.create_assessment_ignoresert(
 	assessment_type =>'questionnaire',
+	assessment_code => 'covidcnsharm',
+	assessment_version_code => '1',
+	name => 'COVID-CNS Self-harm',
+	abbreviation => 'HARM',
+	reference_id => met.get_reference_by_doi('10.1136/bmj.m3871'),
+	documentation => ''
+	);
+
+SELECT met.create_assessment_ignoresert(
+	assessment_type =>'questionnaire',
 	assessment_code => 'covidcnsimpact',
 	assessment_version_code => '1',
 	name => 'COVID-CNS Impact of COVID',
@@ -199,11 +227,33 @@ SELECT met.create_assessment_ignoresert(
 
 SELECT met.create_assessment_ignoresert(
 	assessment_type =>'questionnaire',
+	assessment_code => 'covidcnsmigraine',
+	assessment_version_code => '1',
+	name => 'COVID-CNS Migraine Disability Assessment',
+	abbreviation => 'MDA',
+	reference_id => met.get_reference_by_doi('10.1136/bmj.m3871'),
+	documentation => ''
+	);
+
+SELECT met.create_assessment_ignoresert(
+	assessment_type =>'questionnaire',
 	assessment_code => 'covidcnsnonmotor',
 	assessment_version_code => '1',
 	name => 'COVID-CNS General Neuro Non-Motor Symptoms',
 	abbreviation => 'NONMOTOR',
 	reference_id => met.get_reference_by_doi('10.1136/bmj.m3871'),
+	documentation => ''
+	);
+
+
+INSERT INTO met.reference(doi,pmid,year,documentation) VALUES('10.1037/1040-3590.14.4.485','12501574',2002,'The Obsessive-Compulsive Inventory: Development and validation of a short version.');
+SELECT met.create_assessment_ignoresert(
+	assessment_type =>'questionnaire',
+	assessment_code => 'oci',
+	assessment_version_code => 'r',
+	name => 'The Obsessive-Compulsive Inventory, short version',
+	abbreviation => 'OCI-R',
+	reference_id => met.get_reference_by_doi('10.1037/1040-3590.14.4.485'),
 	documentation => ''
 	);
 
@@ -218,6 +268,18 @@ SELECT met.create_assessment_ignoresert(
 	documentation => ''
 	);
 
+
+SELECT met.create_assessment_ignoresert(
+	assessment_type =>'questionnaire',
+	assessment_code => 'covidcnsphh',
+	assessment_version_code => '1',
+	name => 'COVID-CNS Physical Health History',
+	abbreviation => 'PHH',
+	reference_id => met.get_reference_by_doi('10.1136/bmj.m3871'),
+	documentation => ''
+	);
+
+
 INSERT INTO met.reference(doi,pmid,year,documentation) VALUES('10.1046/j.1525-1497.2001.016009606.x','11556941',2001,'The PHQ-9: validity of a brief depression severity measure');
 SELECT met.create_assessment_ignoresert(
 	assessment_type =>'questionnaire',
@@ -230,12 +292,34 @@ SELECT met.create_assessment_ignoresert(
 	);
 
 
+INSERT INTO met.reference(doi,pmid,year,documentation) VALUES('10.1037/t30040-000',NULL,1995,'Psychosis Screening Questionnaire (PSQ)');
+SELECT met.create_assessment_ignoresert(
+	assessment_type =>'questionnaire',
+	assessment_code => 'psq',
+	assessment_version_code => '1',
+	name => 'Psychosis Screening Questionnaire',
+	abbreviation => 'PSQ',
+	reference_id => met.get_reference_by_doi('10.1037/t30040-000'),
+	documentation => 'The Psychosis Screening Questionnaire (PSQ; Bebbington & Nayani, 1995) assesses potentially psychotic symptoms. The PSQ covers five broad categories of symptoms: hypomania; thought interference; persecutory delusions; delusional mood; and auditory hallucinations. Each category is screened for with a stem question followed by more targeted questions. For each domain, a screening question establishes the presence of the symptom with additional questions then confirming that the experience is incongruent with norms in the society. The informant must have answered ‘yes’ to all questions within a symptom category in order to score positive on that item. The 5 multiple-part items (e.g., "Over the past year, have there been times when you felt very happy indeed without a break for days on end?" and "Over the past year, have there been times when things looked or sounded abnormal to you?") were answered as yes, no, or unsure. For the PSQ, sensitivity was 96.9%, specificity 95.3%, positive predictive value 91.2%, and negative predictive value 98.4%. (PsycTests Database Record (c) 2020 APA, all rights reserved)'
+	);
+
+
 SELECT met.create_assessment_ignoresert(
 	assessment_type =>'questionnaire',
 	assessment_code => 'covidcnssmelltaste',
 	assessment_version_code => '1',
 	name => 'COVID-CNS Sense of smell and taste',
 	abbreviation => 'SMELLTASTE',
+	reference_id => met.get_reference_by_doi('10.1136/bmj.m3871'),
+	documentation => ''
+	);
+
+SELECT met.create_assessment_ignoresert(
+	assessment_type =>'questionnaire',
+	assessment_code => 'covidcnstinnitus',
+	assessment_version_code => '1',
+	name => 'COVID-CNS Tinnitus and hearing',
+	abbreviation => 'TINNITUS',
 	reference_id => met.get_reference_by_doi('10.1136/bmj.m3871'),
 	documentation => ''
 	);
