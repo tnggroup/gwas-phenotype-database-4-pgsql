@@ -56,6 +56,8 @@ INSERT INTO met.reference(doi,pmid,year,documentation) VALUES('10.1136/bmj.m3871
 INSERT INTO met.cohortstage(code,cohort,name,abbreviation,order_index) VALUES('bl',met.get_cohort('covidcns'),'Baseline','BL',0);
 INSERT INTO met.cohortstage(code,cohort,name,abbreviation,order_index) VALUES('blinp',met.get_cohort('covidcns'),'Baseline, inpatients only','BL INP',0);
 INSERT INTO met.cohortstage(code,cohort,name,abbreviation,order_index) VALUES('bloutp',met.get_cohort('covidcns'),'Baseline, outpatients only','BL OUTP',0);
+INSERT INTO met.cohortstage(code,cohort,name,abbreviation,order_index) VALUES('followup1',met.get_cohort('covidcns'),'Followup 1','T1',1);
+INSERT INTO met.cohortstage(code,cohort,name,abbreviation,order_index) VALUES('followup2',met.get_cohort('covidcns'),'Followup 2','T2',2);
 INSERT INTO met.cohortinstance(code,cohort,name,abbreviation,reference) VALUES('2022',met.get_cohort('covidcns'),'First extraction in 2022','2022',met.get_reference_by_doi('10.1136/bmj.m3871'));
 INSERT INTO met.cohortinstance(code,cohort,name,abbreviation,reference) VALUES('2023',met.get_cohort('covidcns'),'Improved extraction in 2023','2023',met.get_reference_by_doi('10.1136/bmj.m3871'));
 INSERT INTO met.assessment_item_type(assessment_type,code,name,abbreviation,documentation) VALUES('imaging','idp','Imaging-Derived Phenotype','IDP','Measurements based on imaging derived and QC metrics.');
