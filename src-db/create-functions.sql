@@ -1764,7 +1764,9 @@ BEGIN
 				item_original_descriptor => r.assessment_item_code,
 				item_name => r.assessment_item_code,
 				item_index => CAST(r.item_index AS int),
-				item_text => r.item_text,
+				item_text => CASE 
+								WHEN CAST(r.item_text AS character varying) IS NULL THEN ''
+								ELSE CAST(r.item_text AS character varying) END,
 				documentation => CASE 
 									WHEN r.item_documentation IS NULL THEN ''
 									ELSE r.item_documentation END
@@ -1851,7 +1853,7 @@ BEGIN
 			--RAISE NOTICE 'STSN-string: %',string_source_column_names;
 
 			string_query := 'INSERT INTO coh.' || c_n_table_name || '(' || string_target_column_names || ')' || ' SELECT ' || string_source_column_names || ' FROM t_src_individual src WHERE src._individual_identifier IS NOT NULL';
-			--RAISE NOTICE 'Q: %',string_query;
+			RAISE NOTICE 'Q: %',string_query;
 			EXECUTE string_query;
 		END LOOP;
 	END IF;
