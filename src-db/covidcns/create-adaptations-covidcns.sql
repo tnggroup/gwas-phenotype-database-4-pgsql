@@ -493,6 +493,79 @@ SELECT met.create_assessment_ignoresert(
 	documentation => 'A radiology report type instrument.'
 	);
 
+--has no DOI
+--https://www.pssru.ac.uk/pub/dp1536.pdf
+-- Beecham, J., & Knapp, M. (2001). Costing psychiatric interventions. Measuring mental health needs, 2, 200-224.
+SELECT met.create_assessment_ignoresert(
+	assessment_type =>'questionnaire',
+	assessment_code => 'csri',
+	assessment_version_code => '1',
+	name => 'Client Service Receipt Inventory',
+	abbreviation => 'CSRI',
+	reference_id => met.get_reference_by_doi('10.1136/bmj.m3871'),
+	documentation => ''
+	);
+
+SELECT met.create_assessment_ignoresert(
+	assessment_type =>'questionnaire',
+	assessment_code => 'lang',
+	assessment_version_code => '1',
+	name => 'Undocumented instrument lang',
+	abbreviation => 'LANG',
+	reference_id => met.get_reference_by_doi('10.1136/bmj.m3871'),
+	documentation => 'This instrument was not documented but has data.'
+	);
+
+SELECT met.create_assessment_ignoresert(
+	assessment_type =>'questionnaire',
+	assessment_code => 'menopause',
+	assessment_version_code => '1',
+	name => 'Undocumented instrument menopause',
+	abbreviation => 'MENOPAUSE',
+	reference_id => met.get_reference_by_doi('10.1136/bmj.m3871'),
+	documentation => 'This instrument was not documented but has data.'
+	);
+
+SELECT met.create_assessment_ignoresert(
+	assessment_type =>'questionnaire',
+	assessment_code => 'mle',
+	assessment_version_code => '1',
+	name => 'Undocumented instrument Major Life Events',
+	abbreviation => 'MLE',
+	reference_id => met.get_reference_by_doi('10.1136/bmj.m3871'),
+	documentation => 'This instrument was not documented but has data.'
+	);
+
+SELECT met.create_assessment_ignoresert(
+	assessment_type =>'questionnaire',
+	assessment_code => 'pad',
+	assessment_version_code => 'covidcns',
+	name => 'Undocumented instrument PAD (possibly Peripheral Artery Disease Questionnaire)',
+	abbreviation => 'PAD',
+	reference_id => met.get_reference_by_doi('10.1136/bmj.m3871'),
+	documentation => 'This instrument was not documented but has data.'
+	);
+
+SELECT met.create_assessment_ignoresert(
+	assessment_type =>'questionnaire',
+	assessment_code => 'psm',
+	assessment_version_code => '1',
+	name => 'Undocumented instrument PSM (possibly symptoms during last month)',
+	abbreviation => 'PSM',
+	reference_id => met.get_reference_by_doi('10.1136/bmj.m3871'),
+	documentation => 'This instrument was not documented but has data.'
+	);
+
+SELECT met.create_assessment_ignoresert(
+	assessment_type =>'questionnaire',
+	assessment_code => 'ses',
+	assessment_version_code => '1',
+	name => 'Undocumented instrument SES (possibly additional socioeconomic status)',
+	abbreviation => 'SES',
+	reference_id => met.get_reference_by_doi('10.1136/bmj.m3871'),
+	documentation => 'This instrument was not documented but has data.'
+	);
+
 
 -- COVID-CNS Data dictionary views
 CREATE OR REPLACE VIEW coh_covidcns.dictionary_variables

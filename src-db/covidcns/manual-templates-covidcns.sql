@@ -615,6 +615,13 @@ CNS_Pandemic Related Questions
 *
 **/
 
+--202410 JZ: Cleanup after deleted instrument data
+
+/*
+DELETE FROM met.assessment_item_variable USING met.assessment_item ai WHERE ai.assessment = 15 AND assessment_item_variable.assessment_item=ai.id;
+DELETE FROM met.assessment_item ai WHERE ai.assessment = 15;
+*/
+
 --202410 JZ: IMPORT ATTEMPT/TESTS, SQL only
 
 DROP TABLE IF EXISTS timp CASCADE;
